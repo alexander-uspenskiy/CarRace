@@ -1,0 +1,35 @@
+// Ridgeback Raceway — original circuit. Control points describe a CLOSED loop (clockwise seen from above,
+// sim y = south) in travel direction; control point 0 is the start/finish line, on a long straight.
+export const ridgeback = {
+  id: 'ridgeback',
+  name: 'Ridgeback Raceway',
+  country: 'Austria',
+  blurb: 'Tight and technical mountain circuit: rapid esses, a heavy-braking hairpin and no room for mistakes.',
+  rating: { speed: 2, technical: 5 },
+  controlPoints: [
+    [48, -329.3], [76.9, -329.3], [154.1, -329.3], [231.3, -329.3], [252.8, -325.9], [272.2, -316.1],
+    [287.7, -300.8], [297.7, -281.5], [310.8, -242.3], [323.8, -203.1], [328.4, -176.3], [324.8, -149.3],
+    [313.3, -124.7], [287, -85.2], [275.8, -61.4], [271.9, -35.3], [275.8, -9.2], [287, 14.6],
+    [318, 61.1], [331.1, 92.1], [331.9, 125.8], [324.4, 170.7], [316.9, 215.7], [308, 239.9],
+    [290.9, 259.3], [268, 271.2], [204.6, 290.2], [141.1, 309.3], [77.7, 328.3], [68.4, 329.3],
+    [59.3, 326.9], [51.6, 321.5], [46.4, 313.7], [44.3, 304.5], [45.6, 295.2], [64.2, 239.3],
+    [82.8, 183.5], [85.6, 166.8], [83.2, 150], [75.9, 134.8], [64.2, 122.5], [49.4, 114.4],
+    [-16.9, 90.3], [-34, 86.8], [-51.4, 88.3], [-67.7, 94.9], [-81.3, 105.8], [-110.2, 137],
+    [-139.1, 168.1], [-152.1, 177.8], [-167.6, 182.2], [-183.8, 180.9], [-198.4, 174], [-209.6, 162.3],
+    [-216, 147.5], [-216.7, 131.3], [-216.3, 128.3], [-217.8, 92.2], [-232.1, 59.1], [-267.9, 5.4],
+    [-278.5, -15.3], [-284, -37.8], [-290.4, -90], [-297.7, -119.8], [-325.6, -194.2], [-331.9, -225.6],
+    [-327.9, -257.4], [-314.2, -286.3], [-291.9, -309.3], [-263.6, -324.2], [-232, -329.3], [-154.8, -329.3],
+    [-77.5, -329.3], [-0.3, -329.3],
+  ],
+  width: 13,
+  runoff: 9,
+  kerbWidth: 1.4,
+  lengthHint: 2500,
+  referenceLapTime: 66.9, // initial guess (estimated from a speed-profile model); effective value = calibration.js override when present
+  theme: {
+    sky: ['#7b95b4', '#dde4ec'], fog: '#c5cdd7', grass: '#4a6b34', asphalt: '#34353a',
+    kerbA: '#ff8c00', kerbB: '#ffffff', sunDir: [0.5, 0.7, -0.3],
+    scenery: ['trees', 'grandstands'], treeDensity: 0.9,
+  },
+  seed: 2024,
+};
