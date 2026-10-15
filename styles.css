@@ -628,12 +628,14 @@ html.touch .hud-hint, html.touch .hud-weather { display: none; }
 html.touch .tc { display: block; }
 .tc-btn { pointer-events: auto; touch-action: none; display: flex; align-items: center; justify-content: center; padding: 0; margin: 0; border: 2px solid rgba(255,255,255,0.38); border-radius: 18px; background: rgba(10,12,18,0.52); color: #fff; font-weight: 900; letter-spacing: .08em; font-size: 14px; text-shadow: none; -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); -webkit-tap-highlight-color: transparent; }
 .tc-btn span { pointer-events: none; }
-.tc-steer, .tc-pedals, .tc-boost { touch-action: none; pointer-events: auto; }
+.tc-boost { touch-action: none; }
 .tc-btn.down { background: color-mix(in srgb, var(--team, #e10600) 72%, rgba(0,0,0,0.35)); border-color: #fff; transform: scale(0.96); }
-.tc-steer { position: absolute; left: 14px; bottom: 14px; display: flex; gap: 12px; }
-.tc-steer .tc-btn { width: var(--tc-s); height: var(--tc-s); font-size: calc(var(--tc-s) * 0.4); }
-.tc-rgroup { position: absolute; right: 14px; bottom: 14px; display: flex; flex-direction: row; align-items: flex-end; gap: 14px; }
-.tc-pedals { display: flex; align-items: flex-end; gap: 12px; }
+.tc-zone { position: absolute; left: 38%; right: 0; top: 50px; bottom: 0; pointer-events: auto; touch-action: none; }
+.tc-ring { position: absolute; width: var(--r, 120px); height: var(--r, 120px); margin: calc(var(--r, 120px) / -2) 0 0 calc(var(--r, 120px) / -2); border-radius: 50%; border: 2px solid rgba(255,255,255,0.35); background: rgba(10,12,18,0.28); opacity: 0; transition: opacity .12s; pointer-events: none; }
+.tc-ring.on { opacity: 1; }
+.tc-knob { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; background: rgba(255,255,255,0.85); box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+.tc-lgroup { position: absolute; left: 14px; bottom: 14px; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.tc-pedals { display: flex; align-items: flex-end; gap: 12px; touch-action: none; pointer-events: auto; }
 .tc-brake { width: var(--tc-s); height: var(--tc-s); font-size: 13px; }
 .tc-gas { width: calc(var(--tc-s) * 1.18); height: calc(var(--tc-s) * 1.5); font-size: 17px; border-color: rgba(53,208,127,0.8); }
 .tc-brake { border-color: rgba(255,77,77,0.8); }
@@ -647,7 +649,7 @@ html.touch .tc { display: block; }
   html.touch .hud-speedo .speed-val { font-size: 36px; min-width: 80px; }
   html.touch .hud-speedo .gear-val { font-size: 26px; min-width: 22px; }
   html.touch .hud-speedo .rpm { margin-top: 4px; height: 7px; }
-  html.touch .hud-gauges { left: 8px; bottom: auto; top: 160px; width: 168px; padding: 5px 8px; gap: 3px; }
+  html.touch .hud-gauges { left: 192px; bottom: auto; top: 72px; width: 196px; padding: 4px 8px; gap: 2px; }
   html.touch .gauge { grid-template-columns: 44px 1fr 62px; font-size: 11px; }
   html.touch .hud-minimap { right: 8px; bottom: auto; top: 170px; width: 80px; height: 80px; }
   html.touch .hud-pause { width: 40px; height: 36px; }
@@ -661,14 +663,14 @@ html.touch .tc { display: block; }
   html.touch .hud-topright { width: 176px; }
   html.touch .hud-pause { right: 190px; }
   html.touch .hud-speedo { left: 160px; width: 150px; }
+  html.touch .hud-gauges { left: 160px; width: 150px; }
   html.touch .hud-speedo .speed-val { font-size: 30px; min-width: 64px; }
   html.touch .hud-speedo .gear-box label, html.touch .hud-speedo .speed-unit { display: none; }
 }
 /* phone portrait: controls take the bottom ~210px, the speedo and gauges ride above them */
 @media (max-width: 700px) and (min-height: 501px) {
   html.touch .tc { --tc-s: clamp(46px, calc((100vw - 60px) / 5.4), 64px); }
-  html.touch .tc-steer { left: 10px; bottom: 10px; gap: 8px; }
-  html.touch .tc-rgroup { flex-direction: column; align-items: flex-end; gap: 8px; right: 10px; bottom: 10px; }
+  html.touch .tc-lgroup { left: 10px; bottom: 10px; gap: 8px; }
   html.touch .tc-pedals { gap: 8px; }
   html.touch .tc-aux { gap: 6px; }
   html.touch .tc-aux .tc-btn { height: 36px; min-width: 52px; padding: 0 8px; font-size: 11px; }
@@ -688,13 +690,13 @@ html.touch .tc { display: block; }
   html.touch .hud .t-head { font-size: 9px; grid-template-columns: 18px 1fr 44px; }
   html.touch .hud .t-tyre { display: none; }
   html.touch .hud-minimap { right: 6px; top: 96px; width: 84px; height: 84px; }
-  html.touch .hud-speedo { left: 6px; transform: none; bottom: calc(var(--tc-s, 60px) + 22px); width: 150px; padding: 3px 8px 5px; }
+  html.touch .hud-speedo { left: auto; right: 6px; transform: none; top: 186px; bottom: auto; width: 150px; padding: 3px 8px 5px; }
   html.touch .hud-speedo .speed-val { font-size: 32px; min-width: 64px; }
   html.touch .hud-speedo .gear-val { font-size: 24px; min-width: 20px; }
   html.touch .hud-speedo .speed-row { gap: 8px; }
   html.touch .hud-speedo .gear-box label, html.touch .hud-speedo .speed-unit { display: none; }
   html.touch .hud-speedo .rpm { height: 6px; margin-top: 3px; }
-  html.touch .hud-gauges { left: 6px; bottom: calc(var(--tc-s, 60px) + 80px); width: 150px; padding: 4px 6px; gap: 2px; }
+  html.touch .hud-gauges { left: auto; right: 6px; top: 238px; bottom: auto; width: 150px; padding: 4px 6px; gap: 2px; }
   html.touch .gauge { grid-template-columns: 38px 1fr 40px; font-size: 9.5px; gap: 4px; }
   html.touch .gauge .val { font-size: 9.5px; }
   html.touch .gauge .track { height: 7px; }

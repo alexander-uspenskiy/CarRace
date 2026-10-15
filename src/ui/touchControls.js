@@ -1,11 +1,12 @@
-// On-screen driving controls for touch devices: steer left/right, gas, brake, boost, camera, reset.
-// Multi-touch safe: each button tracks its own pointer, so steering and the pedals can be held together.
+// On-screen driving controls for touch devices. Right thumb: a floating analog steering zone (touch anywhere on the right
+// side, drag left/right). Left thumb: brake / gas (slide between them), boost, camera, reset.
+// Multi-touch safe: every finger is tracked by its own pointer, so steering and the pedals work together.
 import { h } from './dom.js';
 
 /** Pure: hold state -> InputState fields (both steer buttons cancel, like the keyboard). */
 export function holdsToInput(hold) {
   return {
-    steer: (hold.right ? 1 : 0) - (hold.left ? 1 : 0),
+    steer: Math.max(-1, Math.min(1, (hold.right ? 1 : 0) - (hold.left ? 1 : 0) + (hold.axis || 0))),
     throttle: hold.gas ? 1 : 0,
     brake: hold.brake ? 1 : 0,
     handbrake: false,
@@ -15,17 +16,29 @@ export function holdsToInput(hold) {
 }
 
 /**
+ * Pure: horizontal drag distance (px) -> steering in [-1, 1]. Small dead zone, then an eased curve
+ * so small movements are precise and a full-radius drag is full lock.
+ */
+export function steerFromDrag(dx, radius) {
+  const v = Math.max(-1, Math.min(1, dx / radius));
+  const dead = 0.06;
+  const a = Math.abs(v);
+  if (a < dead) return 0;
+  return Math.sign(v) * Math.pow((a - dead) / (1 - dead), 1.35);
+}
+
+/**
  * createTouchControls({ root, onAction, onReset })
  *   onAction('camera') for the camera button; onReset() for the reset button (one-shot).
  * API: el, read() -> InputState partial, setVisible(bool), release() (drop every held button), dispose().
  */
 export function createTouchControls({ root, onAction = () => {}, onReset = () => {} } = {}) {
-  const hold = { left: false, right: false, gas: false, brake: false, boost: false };
+  const hold = { gas: false, brake: false, boost: false, axis: 0 };
   const active = new Map();   // pointerId -> { group, key }
 
   // hold state is always derived from the live pointers, so two fingers on one button / a lost event can never stick or drop a key
   function sync() {
-    for (const k of Object.keys(hold)) hold[k] = false;
+    for (const k of ['gas', 'brake', 'boost']) hold[k] = false;
     for (const a of active.values()) if (a.key) hold[a.key] = true;
     for (const g of groups) for (const [key, btn] of g.buttons) btn.classList.toggle('down', hold[key]);
   }
@@ -92,19 +105,61 @@ export function createTouchControls({ root, onAction = () => {}, onReset = () =>
     return btn;
   }
 
-  const left = holdButton('tc-left', '◀', 'Steer left');
-  const right = holdButton('tc-right', '▶', 'Steer right');
   const gas = holdButton('tc-gas', 'GAS');
   const brake = holdButton('tc-brake', 'BRAKE');
   const boost = holdButton('tc-boost', 'BOOST', 'ERS boost');
   const cam = tapButton('tc-cam', 'CAM', () => onAction('camera'));
   const reset = tapButton('tc-reset', 'RESET', () => onReset());
 
-  const steer = h('div.tc-steer', left, right);
+  // floating analog steering: the origin is wherever the thumb lands; if the thumb runs past full lock the origin follows it
+  const knob = h('div.tc-knob');
+  const ring = h('div.tc-ring', knob);
+  const zone = h('div.tc-zone', { 'aria-label': 'Steering: touch and drag left or right' }, ring);
+  let steerPtr = null;                      // { id, ox, oy }
+  const radius = () => Math.max(44, Math.min(72, window.innerWidth * 0.15));
+  function drawSteer(dx) {
+    const r = radius();
+    ring.style.setProperty('--r', r * 2 + 'px');
+    knob.style.transform = 'translate(' + Math.max(-r, Math.min(r, dx)) + 'px, 0)';
+  }
+  function endSteer() {
+    steerPtr = null;
+    hold.axis = 0;
+    ring.classList.remove('on');
+    drawSteer(0);
+  }
+  zone.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (steerPtr) return;
+    try { zone.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    const box = zone.getBoundingClientRect();
+    steerPtr = { id: e.pointerId, ox: e.clientX, oy: e.clientY };
+    ring.style.left = (e.clientX - box.left) + 'px';
+    ring.style.top = (e.clientY - box.top) + 'px';
+    ring.classList.add('on');
+    hold.axis = 0;
+    drawSteer(0);
+    buzz();
+  });
+  zone.addEventListener('pointermove', (e) => {
+    if (!steerPtr || e.pointerId !== steerPtr.id) return;
+    const r = radius();
+    let dx = e.clientX - steerPtr.ox;
+    const lim = r * 1.25;
+    if (dx > lim) { steerPtr.ox = e.clientX - lim; dx = lim; }
+    else if (dx < -lim) { steerPtr.ox = e.clientX + lim; dx = -lim; }
+    hold.axis = steerFromDrag(dx, r);
+    drawSteer(dx);
+  });
+  const zoneEnd = (e) => { if (steerPtr && e.pointerId === steerPtr.id) endSteer(); };
+  zone.addEventListener('pointerup', zoneEnd);
+  zone.addEventListener('pointercancel', zoneEnd);
+  zone.addEventListener('lostpointercapture', zoneEnd);
+  zone.addEventListener('contextmenu', (e) => e.preventDefault());
+
   const pedals = h('div.tc-pedals', brake, gas);
   const aux = h('div.tc-aux', boost, cam, reset);
-  const el = h('div.tc.hidden', steer, h('div.tc-rgroup', aux, pedals));
-  holdGroup(steer, [['left', left], ['right', right]]);
+  const el = h('div.tc.hidden', zone, h('div.tc-lgroup', aux, pedals));
   holdGroup(pedals, [['brake', brake], ['gas', gas]]);
   holdGroup(boost, [['boost', boost]]);
   // the controls must never scroll / zoom / select the page
@@ -114,6 +169,7 @@ export function createTouchControls({ root, onAction = () => {}, onReset = () =>
   function release() {
     active.clear();
     sync();
+    endSteer();
   }
   // a finger can vanish without events (app switch, rotation, system gesture): never leave a pedal stuck
   const onLost = () => release();

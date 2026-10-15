@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { detectTouch } from '../../src/ui/device.js';
-import { holdsToInput } from '../../src/ui/touchControls.js';
+import { holdsToInput, steerFromDrag } from '../../src/ui/touchControls.js';
 
 test('detectTouch: coarse pointer or touch-only hardware means touch; a desktop does not', () => {
   assert.equal(detectTouch({}), false);
@@ -25,4 +25,15 @@ test('touch holds -> InputState: steer buttons cancel, pedals are digital, reset
   assert.equal(holdsToInput({ left: true, right: true }).steer, 0);
   const full = holdsToInput({ gas: true, brake: true, boost: true });
   assert.deepEqual([full.throttle, full.brake, full.boost, full.reset], [1, 1, true, false]);
+});
+
+test('steerFromDrag: dead zone, eased curve, clamped to full lock', () => {
+  assert.equal(steerFromDrag(0, 60), 0);
+  assert.equal(steerFromDrag(2, 60), 0);
+  assert.equal(steerFromDrag(60, 60), 1);
+  assert.equal(steerFromDrag(500, 60), 1);
+  assert.equal(steerFromDrag(-500, 60), -1);
+  const half = steerFromDrag(30, 60);
+  assert.ok(half > 0 && half < 0.5);
+  assert.equal(steerFromDrag(-30, 60), -half);
 });
