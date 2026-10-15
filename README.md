@@ -63,3 +63,7 @@ tests/                   node unit tests
 docs/                    architecture and notes
 vendor/                  vendored three.module.js
 ```
+
+## License
+
+MIT, see [LICENSE](LICENSE). Three.js (vendored in `vendor/`) is also MIT-licensed. Team and car names are used descriptively; this is an unofficial fan project.
