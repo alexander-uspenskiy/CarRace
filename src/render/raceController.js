@@ -65,6 +65,7 @@ export class RaceController {
     this.fx = new ParticleSystem(quality === 'low' ? 90 : 200);
     this.scene.add(this.fx.points);
     this._acc = new Float32Array(32);
+    this._dmgAcc = new Float32Array(32);
     this._v = { x: 0, y: 0, z: 0 };
 
     this._applyQuality();
@@ -158,6 +159,19 @@ export class RaceController {
       const dx = c.x - cp.x;
       const dz = c.y - cp.z;
       if (dx * dx + dz * dz > FX_DIST2) continue;
+      // a damaged car smokes (grey, then black and thick when it is badly hurt) and sheds the odd spark
+      if (c.damage > 0.2 && c.speed > 3) {
+        const heavy = c.damage > 0.55;
+        const dr = (c.damage - 0.1) * (heavy ? 26 : 14);
+        const da = (this._dmgAcc[i & 31] || 0) + dr * dt;
+        const n = Math.floor(da);
+        this._dmgAcc[i & 31] = da - n;
+        for (let q = 0; q < n; q++) {
+          carFrameToWorld(v, c.x, c.y, c.heading, 0.8, (Math.random() - 0.5) * 0.5, 0.55);
+          const g = heavy ? 0.1 : 0.5;
+          fx.emit(v.x, v.y, v.z, (Math.random() - 0.5) * 0.8, 1.2 + Math.random(), (Math.random() - 0.5) * 0.8, 1.0, 0.7, 2.6, g, g, g + 0.03, heavy ? 0.7 : 0.45);
+        }
+      }
       let rate = 0;
       let kind = 0;
       if (c.slip > 0.45 && c.speed > 6 && c.surface !== 'grass') {
@@ -183,6 +197,32 @@ export class RaceController {
       }
       this._acc[i & 31] = a;
     }
+  }
+
+  /**
+   * Crash effects at sim position (x, y): a burst of sparks, flying debris and a smoke puff, plus a camera kick if it is near
+   * the player. strength: closing / impact speed in m/s.
+   */
+  impactFx(x, y, strength, near = true) {
+    const fx = this.fx;
+    const k = Math.min(1, Math.max(0, strength - 1) / 25);
+    if (k <= 0) return;
+    const sparks = Math.round(6 + 26 * k), bits = Math.round(2 + 10 * k), puff = Math.round(2 + 6 * k);
+    const r = (a) => (Math.random() - 0.5) * a;
+    for (let i = 0; i < sparks; i++) {
+      const sp = 4 + Math.random() * (8 + 14 * k);
+      const ang = Math.random() * Math.PI * 2;
+      fx.emit(x, 0.45, y, Math.cos(ang) * sp, 2 + Math.random() * 5, Math.sin(ang) * sp, 0.25 + Math.random() * 0.35, 0.28, -0.3, 1, 0.78 + Math.random() * 0.2, 0.25, 1);
+    }
+    for (let i = 0; i < bits; i++) {   // carbon debris
+      const sp = 3 + Math.random() * (5 + 10 * k);
+      const ang = Math.random() * Math.PI * 2;
+      fx.emit(x, 0.5, y, Math.cos(ang) * sp, 3 + Math.random() * 6, Math.sin(ang) * sp, 0.9 + Math.random() * 0.8, 0.45, 0, 0.08, 0.08, 0.09, 0.95);
+    }
+    for (let i = 0; i < puff; i++) {
+      fx.emit(x + r(1.4), 0.4, y + r(1.4), r(3), 0.9 + Math.random() * 1.2, r(3), 1.1 + Math.random() * 0.7, 1.3, 3.8, 0.62, 0.62, 0.66, 0.5);
+    }
+    if (near) this.rig.kick = Math.max(this.rig.kick, Math.min(1, 0.25 + k));
   }
 
   getCarModel(id) {

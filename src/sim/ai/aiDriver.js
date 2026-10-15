@@ -60,6 +60,7 @@ export function createAiDriver({ trackModel, stats, driver, difficulty = 'normal
     init: false, adj: 0, passSide: 0, passId: -1, steer: 0, passCool: 0, heldT: 0,
     mistake: false, prevCurvHi: false,
     paceMult: 1,       // cool-down multiplier etc.
+    lapNo: -1, lapPace: 1, slumpT: 0, slumpDepth: 0, brakeLeadMul: 1,
     launchDelay,
     debug: { vt: 0, e: 0 },
   };
@@ -82,8 +83,19 @@ export function createAiDriver({ trackModel, stats, driver, difficulty = 'normal
     const lookIdx = (idx + Math.ceil((T.lookBase + T.lookGain * u) / ds)) % N;
     const kHere = Math.abs(curv[idx]), kAhead = Math.abs(curv[lookIdx]);
 
+    // ---- natural variation (character): per-lap pace swing, bad patches, drifting line, braking-point scatter ----
+    if (pf && !noMistakes && paceOverride == null) {
+      const lapNo = car.lapsCompleted | 0;
+      if (lapNo !== st.lapNo) {
+        st.lapNo = lapNo;
+        st.lapPace = 1 + (rand() + rand() - 1) * pf.lapVar;
+        if (rand() < pf.slumpRate) { st.slumpT = 6 + rand() * 12; st.slumpDepth = pf.slumpDepth * (0.5 + rand()); }
+        st.brakeLeadMul = 1 + (rand() - 0.5) * 2 * pf.brakeJitter;
+      }
+      if (st.slumpT > 0) st.slumpT -= dt;
+    }
     // ---- unobstructed target speed ----
-    const lead = (idx + Math.ceil((T.brakeLead + T.wearLead * (1 - car.tyreGrip)) * u / ds)) % N;   // brake earlier on worn tyres
+    const lead = (idx + Math.ceil((T.brakeLead * st.brakeLeadMul + T.wearLead * (1 - car.tyreGrip)) * u / ds)) % N;   // brake earlier on worn tyres
     const vProfile = spd[lead];
     if (!noMistakes) {
       const hi = Math.abs(curv[lookIdx]) > 1 / 120;
@@ -108,6 +120,9 @@ export function createAiDriver({ trackModel, stats, driver, difficulty = 'normal
       pace *= (1 + pf.formAmp * Math.sin(world.raceTime * (Math.PI * 2) / pf.formPeriod + pf.formPhase)) * pf.wetPace;
       if (car.heat > pf.heatEase) pace *= 1 - 0.12 * clamp((car.heat - pf.heatEase) / 0.2, 0, 1);
     }
+    if (pf && !noMistakes && paceOverride == null) {
+      pace *= st.lapPace * (st.slumpT > 0 ? 1 - st.slumpDepth : 1);
+    }
     pace *= st.paceMult;
     let vt0 = vProfile * pace;
     if (vProfile < 0.9 * top) {
@@ -122,10 +137,12 @@ export function createAiDriver({ trackModel, stats, driver, difficulty = 'normal
     let blocker = null, blockGap = 1e9;
     let parked = null, parkGap = 1e9;
     let alongside = null, alongDs = 1e9;
+    let crowded = false;      // a car close ahead / behind / beside: no natural wandering in traffic
     for (let k = 0; k < others.length; k++) {
       const o = others[k];
       if (o === car) continue;
       const dS = wrapDs(o.s - car.s, L);
+      if (dS > -16 && dS < 16 && Math.abs(o.d - car.d) < 5.5) crowded = true;
       if (dS > -6.5 && dS < 6.5 && Math.abs(o.d - car.d) < 3.4) {
         if (Math.abs(dS) < alongDs) { alongside = o; alongDs = Math.abs(dS); }
       }
@@ -207,7 +224,12 @@ export function createAiDriver({ trackModel, stats, driver, difficulty = 'normal
       adjDesired = st.adj; rate = 0;
     } else {
       adjDesired = 0; rate = T.laneHoldDecay;
-      if (world.raceTime > 6 && Math.abs(st.adj) > 0.3) rate = T.returnRate;
+      if (pf && !noMistakes && paceOverride == null && world.raceTime > 4 && !crowded) {
+        // natural line: drift around the racing line (smaller for experienced drivers), never into the barrier
+        adjDesired = clamp(pf.wanderAmp * Math.sin(world.raceTime * (Math.PI * 2) / pf.wanderPeriod + pf.wanderPhase), -lim + 1.6, lim - 1.6)
+          * (kHere < 1 / 150 ? 1 : 0.35);
+        rate = 1.0;
+      } else if (world.raceTime > 6 && Math.abs(st.adj) > 0.3) rate = T.returnRate;
     }
     if (alongside) {
       const dInt = lineOffAhead + adjDesired;

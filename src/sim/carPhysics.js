@@ -53,7 +53,7 @@ export function createCarState(pose, stats) {
     u: pose.speed || 0, v: 0, yawRate: 0, steerAngle: 0, ax: 0, ay: 0,
     inThrottle: 0, inBrake: 0, inSteer: 0,
     tyreWear: 0, tyreGrip: 1, heat: 0, ers: 1, boosting: false, wantBoost: false,
-    damage: 0, steerEase: 0,                                  // crash damage 0..1 (collisions.js) / easy-mode steering softening
+    damage: 0, steerEase: 0, laneAssist: 0, trackHalf: 7, pull: 0,                                  // crash damage 0..1 (collisions.js) / easy-mode steering softening
     powerMult: 1, coolMult: 1, wearMult: 1, gripMult: 1,     // car trouble multipliers (carFaults.js)
     s: 0, d: 0, index: 0, surface: 'asphalt', progress: 0,
     lap: 1, lapStartT: 0, lastLap: null, bestLap: null, wrongWayT: 0,
@@ -101,7 +101,8 @@ export function filterInput(car, raw, dt) {
     st += clamp(tSteer - st, -m, m);
   } else {
     const rising = Math.abs(tSteer) > Math.abs(st) && tSteer * st >= 0 && tSteer !== 0;
-    const rate = (rising ? TUNING.steerRise : TUNING.steerFall) * dt;
+    // easy / medium: slower, smoother steering build-up (a twitchy thumb can't saw at the wheel)
+    const rate = (rising ? TUNING.steerRise : TUNING.steerFall) * (1 - 0.4 * (car.steerEase || 0)) * dt;
     st += clamp(tSteer - st, -rate, rate);
   }
   car.inSteer = st;
@@ -113,14 +114,28 @@ export function filterInput(car, raw, dt) {
   let steer = st;
   const assist = ai ? 0 : (car.assist || 0);
   if (assist > 0 && car.u > 8) {
-    const counter = 0.35 * clamp(car.alphaR / 0.15, -1.5, 1.5);       // steer into rear slide
+    const ease = car.steerEase || 0;
+    const counter = 0.35 * (1 + 0.8 * ease) * clamp(car.alphaR / 0.15, -1.5, 1.5);       // steer into rear slide
     const smax = steerLimit(car.stats, car.u);
     const wref = car.u * Math.tan(st * smax) / (car.stats.cgToFront + car.stats.cgToRear);
-    const damp = clamp((car.yawRate - wref) * 0.25, -0.3, 0.3);        // yaw-rate damping
+    const damp = clamp((car.yawRate - wref) * 0.25 * (1 + 1.5 * ease), -0.3 - 0.2 * ease, 0.3 + 0.2 * ease);        // yaw-rate damping
     steer = clamp(st + assist * (counter - damp), -1, 1);
   }
   // easy / medium: less steering lock at speed, so a twitchy thumb doesn't spin the car
-  if (!ai && car.steerEase > 0 && car.u > 15) steer *= 1 - 0.35 * car.steerEase * clamp((car.u - 15) / 45, 0, 1);
+  if (!ai && car.steerEase > 0 && car.u > 12) steer *= 1 - 0.5 * car.steerEase * clamp((car.u - 12) / 40, 0, 1);
+  // easy / medium lane keeping: near the edges a hands-off car is gently steered back towards the track
+  if (!ai && car.laneAssist > 0 && car.u > 10) {
+    const hw = car.trackHalf || 7;
+    const w = clamp((Math.abs(car.d) - 0.45 * hw) / (0.5 * hw), 0, 1);
+    if (w > 0) {
+      const sg = Math.sign(car.d);
+      const outward = sg * wrapAngle(car.heading - car.trackHeading);        // > 0: heading towards the barrier
+      steer += -sg * car.laneAssist * w * clamp(0.35 + 3 * outward, 0, 1) * (1 - 0.7 * Math.abs(tSteer));
+      steer = clamp(steer, -1, 1);
+    }
+  }
+  // a damaged car pulls to the side it was hit on
+  if (car.damage > 0.25 && car.pull) steer = clamp(steer + car.pull * 0.12 * (car.damage - 0.25) / 0.55, -1, 1);
   out.steer = steer;
   out.throttle = car.inThrottle;
   out.brake = car.inBrake;

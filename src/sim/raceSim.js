@@ -111,6 +111,8 @@ export class RaceSim {
       const dcfg = DIFFICULTY[config.difficulty] ?? DIFFICULTY.normal;
       car.assist = metas[g.carId].isPlayer ? Math.max(config.steerAssist ?? 0.5, dcfg.steerAssistMin ?? 0) : 0;
       car.steerEase = metas[g.carId].isPlayer ? (dcfg.steerEase ?? 0) : 0;
+      car.laneAssist = metas[g.carId].isPlayer ? (dcfg.laneAssist ?? 0) : 0;
+      car.trackHalf = model.halfWidth;
       car.progress = pose.s - model.length;
       car.gapAhead = 0; car.gapLeader = 0; car.lapsCompleted = 0;
       const p = model.project(car.x, car.y, 0);
@@ -307,6 +309,7 @@ export class RaceSim {
       if (car.wallImpact > 3 && car.wallCooldown <= 0) {
         car.wallCooldown = 0.4; car.contact = 1;
         this._damage(i, crashDamage(car.wallImpact, this._damageScale(i)));
+        if (car.hitSide) car.pull = car.hitSide;
         emit('car:wall', { carId: i, speed: car.wallImpact, x: car.x, y: car.y });
       }
       if (car.wallCooldown > 0) car.wallCooldown -= dt;
@@ -363,8 +366,9 @@ export class RaceSim {
           if (sp > 2) {
             this._damage(i, crashDamage(sp, this._damageScale(i), true));
             this._damage(j, crashDamage(sp, this._damageScale(j), true));
-            if (this.time - (this._lastContact[i]) > 0.4 || this._lastContact[i] < 0) { this._lastContact[i] = this.time; emit('car:contact', { carId: i, otherId: j, speed: sp }); }
-            if (this.time - (this._lastContact[j]) > 0.4 || this._lastContact[j] < 0) { this._lastContact[j] = this.time; emit('car:contact', { carId: j, otherId: i, speed: sp }); }
+            if (a.hitSide) a.pull = a.hitSide; if (b.hitSide) b.pull = b.hitSide;
+            if (this.time - (this._lastContact[i]) > 0.4 || this._lastContact[i] < 0) { this._lastContact[i] = this.time; emit('car:contact', { carId: i, otherId: j, speed: sp, x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }); }
+            if (this.time - (this._lastContact[j]) > 0.4 || this._lastContact[j] < 0) { this._lastContact[j] = this.time; emit('car:contact', { carId: j, otherId: i, speed: sp, x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }); }
           }
         }
       }

@@ -53,8 +53,16 @@ export function buildAiProfile({ driver, rng, config = {} }) {
   return {
     experience: exp,
     aggression: agg,
-    paceBias: form * 0.008,
-    formAmp: lerp(0.004, 0.0012, exp),
+    paceBias: form * 0.03 + 0.01,
+    formAmp: lerp(0.008, 0.0015, exp),
+    // natural variation: rookies drift across the track, change their line, have slow laps and off moments; veterans repeat
+    lapVar: lerp(0.02, 0.003, exp),                     // lap-to-lap pace swing (fraction)
+    wanderAmp: lerp(1.5, 0.3, exp) * (0.6 + 0.8 * rng()),  // m: sideways drift from the racing line
+    wanderPeriod: 6 + rng() * 9,                           // s
+    wanderPhase: rng() * TAU,
+    slumpRate: lerp(0.12, 0.012, exp),                     // chance per lap of a bad patch (lock-up, missed apex, lost focus)
+    slumpDepth: lerp(0.09, 0.03, exp),                     // pace lost during it
+    brakeJitter: lerp(0.35, 0.08, exp),                    // random +/- on how late the braking point is
     formPeriod: 70 + rng() * 80,
     formPhase: rng() * TAU,
     mistakeScale: lerp(1.7, 0.55, exp) * (1 + 1.4 * w.rain * (1 - wetSkill)),

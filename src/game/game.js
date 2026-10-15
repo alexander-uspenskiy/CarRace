@@ -326,8 +326,15 @@ export function createGame({ canvas, uiRoot, storage, bus, onError = () => {} })
   bus.on('race:lights', ({ lit }) => audio.playSfx(lit > 0 ? 'lightBeep' : 'go'));
   bus.on('race:lap', (e) => { if (e.isPlayer) audio.playSfx('lapBeep'); });
   bus.on('race:fastestLap', () => audio.playSfx('fastestLap'));
-  bus.on('car:wall', (e) => { if (sim && e.carId === sim.playerId) audio.playSfx('wall'); });
-  bus.on('car:contact', (e) => { if (sim && e.carId === sim.playerId) audio.playSfx('contact'); });
+  bus.on('car:wall', (e) => {
+    if (sim && e.carId === sim.playerId) audio.playSfx(e.speed > 14 ? 'crash' : 'wall');
+    try { renderer?.impactFx?.(e.x, e.y, e.speed, sim && e.carId === sim.playerId); } catch { /* ignore */ }
+  });
+  bus.on('car:contact', (e) => {
+    if (sim && e.carId === sim.playerId) audio.playSfx(e.speed > 8 ? 'crash' : 'contact');
+    // one effect per pair: the sim emits the event for both cars
+    if (e.x != null && e.carId < e.otherId) { try { renderer?.impactFx?.(e.x, e.y, e.speed * 1.4, sim && (e.carId === sim.playerId || e.otherId === sim.playerId)); } catch { /* ignore */ } }
+  });
 
   // ---------- settings ----------
   game.applySettings = () => {

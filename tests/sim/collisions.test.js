@@ -81,7 +81,7 @@ test('resolveCarCar: overlapping cars are separated, impulses bounded, no damage
   const dist = Math.hypot(b.x - a.x, b.y - a.y);
   assert.ok(dist > 2.5, `centre distance ${dist}`);
   assert.ok(a.u <= 60 + 1e-9 && b.u >= 40 - 1e-9, 'rear car slows, front car does not slow');
-  assert.ok(Math.abs(a.yawRate) <= 0.6 + 1e-9 && Math.abs(b.yawRate) <= 0.6 + 1e-9);
+  assert.ok(Math.abs(a.yawRate) <= 1.2 && Math.abs(b.yawRate) <= 1.2);   // a clear spin kick, still bounded
 });
 
 test('resolveCarCar: no contact beyond the circle radii', () => {

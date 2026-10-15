@@ -64,6 +64,7 @@ export class CameraRig {
     this.t = 0;
     this.orbit = 0;
     this.roll = 0;
+    this.kick = 0; // impact shake (0..1), decays quickly
     this.trans = 0; // seconds of blend left
     this.transT = 0.35;
     this._phase = '';
@@ -111,6 +112,8 @@ export class CameraRig {
 
   /** car: CarSnapshot of the followed car; phase: snapshot.phase; introT: 0..1; time: snapshot.time (sim seconds, optional) */
   update(dt, car, phase, introT, time) {
+    this.kick *= Math.exp(-4.5 * dt);
+    if (this.kick < 0.003) this.kick = 0;
     // never let NaN/Infinity reach the camera matrices (it would blank the whole view permanently)
     if (!car || !Number.isFinite(car.x) || !Number.isFinite(car.y) || !Number.isFinite(car.heading)) return;
     if (!Number.isFinite(dt) || dt < 0) dt = 0;
@@ -177,7 +180,7 @@ export class CameraRig {
     // shake: kerb / grass / contact / speed vibration
     const surf = car.surface;
     const sAmp = surf === 'grass' ? 0.06 : surf === 'kerb' ? 0.025 : 0;
-    const amp = (sAmp * Math.min(1, speed / 40) + (car.contact || 0) * 0.14 + 0.003 * Math.min(1, speed / 90)) * (kind === 'cockpit' ? 0.5 : 1);
+    const amp = (sAmp * Math.min(1, speed / 40) + (car.contact || 0) * 0.14 + this.kick * 0.45 + 0.003 * Math.min(1, speed / 90)) * (kind === 'cockpit' ? 0.5 : 1);
     if (amp > 1e-4 && kind !== 'intro') {
       const t = this.t;
       tp.x += amp * (Math.sin(t * 53.1) + Math.sin(t * 31.7 + 1.3)) * 0.5;

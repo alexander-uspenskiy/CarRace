@@ -81,7 +81,7 @@ test('AI profile: deterministic, rookies are wilder than veterans, compounds are
   assert.ok(rookie.wearMgmt > vet.wearMgmt);
   assert.ok(rookie.heatEase > vet.heatEase);
   assert.ok(COMPOUNDS[rookie.compound] && COMPOUNDS[vet.compound]);
-  for (const p of [rookie, vet]) assert.ok(Math.abs(p.paceBias) < 0.005 && Math.abs(p.wetPace - 1) < 0.02);
+  for (const p of [rookie, vet]) assert.ok(Math.abs(p.paceBias) < 0.03 && Math.abs(p.wetPace - 1) < 0.02);
   // nobody gambles on soft tyres on a wet track as much as in the dry
   const softShare = (weather) => { let n = 0; for (let i = 0; i < 400; i++) if (pickCompound(mulberry32(i), { experience: 0.9, minutes: 5, weather }) === 'soft') n++; return n; };
   assert.ok(softShare('drizzle') < softShare('clear'));
@@ -115,8 +115,10 @@ test('race: AI cars get compounds and some trouble, race is deterministic, rain 
   assert.ok(comps.size >= 2 && [...comps].every((c) => COMPOUNDS[c]), `compounds ${[...comps]}`);
   assert.equal(dry.sim.metas[dry.sim.playerId].compound, null);
   const wet = runRace({ ...over, weather: 'drizzle' });
-  const winDry = dry.sim.getResult().rows[0].totalTime / dry.config.laps;
-  const winWet = wet.sim.getResult().rows[0].totalTime / wet.config.laps;
+  // field average (top 10), not just the winner: with per-driver variation one lucky winner could mask the rain
+  const avgLap = (r) => r.sim.getResult().rows.slice(0, 10).reduce((a, x) => a + x.totalTime, 0) / 10 / r.config.laps;
+  const winDry = avgLap(dry);
+  const winWet = avgLap(wet);
   assert.ok(winWet > winDry * 1.01 && winWet < winDry * 1.12, `lap ${winDry.toFixed(1)} dry vs ${winWet.toFixed(1)} wet`);
   for (const r of [dry, wet]) {
     for (const row of r.sim.getResult().rows) assert.ok(row.finished, `car ${row.carId} finished`);

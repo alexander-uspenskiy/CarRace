@@ -317,6 +317,11 @@ export class AudioEngine {
         this._noiseBurst(0, 0.4, 900, 0.55);
         this._tone(120, 0, 0.35, 'sine', 0.55, 38);
         break;
+      case 'crash':
+        this._noiseBurst(0, 0.7, 1400, 0.7);
+        this._noiseBurst(0.02, 0.35, 5000, 0.35, 'highpass');
+        this._tone(90, 0, 0.5, 'sine', 0.7, 30);
+        break;
       case 'contact':
         this._noiseBurst(0, 0.2, 700, 0.3);
         this._tone(150, 0, 0.18, 'sine', 0.35, 70);
