@@ -11,6 +11,10 @@ import { resolveCarCar } from './collisions.js';
 import { buildGrid, gridPose, createDirector } from './raceDirector.js';
 import { buildRacingLine } from './ai/racingLine.js';
 import { createAiDriver } from './ai/aiDriver.js';
+import { buildAiProfile } from './ai/aiProfile.js';
+import { planFault, stepFault, FAULTS } from './carFaults.js';
+import { COMPOUNDS } from '../data/driverTraits.js';
+import { getWeather } from '../data/weather.js';
 
 export { SIM_HZ, SIM_DT };
 
@@ -52,19 +56,33 @@ export class RaceSim {
     const aiLevels = aiLevelsFor(config.difficulty);
     const metas = [];
     const statsList = [];
+    this.profiles = new Array(20).fill(null);
+    this.faultPlans = new Array(20).fill(null);
     for (let ti = 0; ti < teams.length; ti++) {
       const team = teams[ti];
       for (let di = 0; di < 2; di++) {
         const drv = team.drivers[di];
         const id = ti * 2 + di;
         const isPlayer = id === this.playerId;
-        const stats = computeCarStats(team, isPlayer ? config.upgrades : aiLevels);
+        let stats = computeCarStats(team, isPlayer ? config.upgrades : aiLevels);
+        let compound = null;
+        if (!isPlayer) {
+          // each AI car gets its own character, tyre compound and (maybe) a mechanical problem, all from the race seed
+          const profile = buildAiProfile({ driver: drv, config, rng: mulberry32((config.seed + id * 104729 + 0xa11) >>> 0) });
+          const cmp = COMPOUNDS[profile.compound];
+          stats = { ...stats, tyreMu: stats.tyreMu * cmp.mu, tyreWearMult: stats.tyreWearMult * cmp.wear * profile.wearMgmt };
+          compound = profile.compound;
+          this.profiles[id] = profile;
+          this.faultPlans[id] = planFault(mulberry32((config.seed * 31 + id * 7907 + 0xfa17) >>> 0), {
+            strength: team.strength, expectedSeconds: config.expectedSeconds || config.raceSeconds,
+          });
+        }
         statsList[id] = stats;
         metas[id] = {
           id, teamId: team.id, driverId: drv.id,
           driverName: isPlayer ? config.playerName : drv.name,
           code: isPlayer ? makeDriverCode(config.playerName) : drv.code,
-          number: drv.number, isPlayer, color: team.livery.primary, stats,
+          number: drv.number, isPlayer, color: team.livery.primary, stats, compound,
         };
       }
     }
@@ -87,6 +105,7 @@ export class RaceSim {
       const stats = statsList[g.carId];
       const car = createCarState({ x: pose.x, y: pose.y, heading: pose.heading, speed: 0 }, stats);
       car.id = g.carId; car.grid = g.slot + 1; car.position = g.slot + 1;
+      car.tyreGrip = getWeather(config.weather).grip;     // damp track from the first metre
       car.mode = metas[g.carId].isPlayer ? 'player' : 'ai';
       car.assist = metas[g.carId].isPlayer ? (config.steerAssist ?? 0.5) : 0;
       car.progress = pose.s - model.length;
@@ -101,13 +120,14 @@ export class RaceSim {
         trackModel: model, stats, driver, difficulty: config.difficulty,
         rng: mulberry32((config.seed + g.carId * 7919) >>> 0), racingLine: line,
       };
+      if (!metas[g.carId].isPlayer) aiOpts.profile = this.profiles[g.carId];
       if (!metas[g.carId].isPlayer) {
         this.drivers[g.carId] = createAiDriver(aiOpts);
         car.ai = this.drivers[g.carId].state;
       } else {
         this.drivers[g.carId] = null;
         this.autopilotDriver = createAiDriver({
-          ...aiOpts, driver: { skill: 1 }, paceOverride: config.autopilotPace ?? 0.96, noMistakes: true, difficulty: 'normal',
+          ...aiOpts, profile: null, driver: { skill: 1 }, paceOverride: config.autopilotPace ?? 0.96, noMistakes: true, difficulty: 'normal',
           rng: mulberry32((config.seed + 12345) >>> 0),
         });
         this.coolDownDrivers[g.carId] = createAiDriver({
@@ -258,6 +278,12 @@ export class RaceSim {
       else raw = this.drivers[i].drive(car, world, dt);
       if (isPlayer) car.mode = (car.finished || this.autopilot) ? 'ai' : 'player';
 
+      const plan = this.faultPlans[i];
+      if (plan && racing) {
+        const fev = stepFault(plan, car, dir.raceTime);
+        if (fev) emit('car:issue', { carId: i, kind: plan.kind, label: FAULTS[plan.kind].label, phase: fev });
+      }
+
       // slipstream
       let draft = 0;
       if (racing) {
@@ -381,6 +407,7 @@ export class RaceSim {
       o.lapTime = c.finished ? (c.lastLap ?? 0) : (racingT ? Math.max(0, dir.raceTime - c.lapStartT) : 0);
       o.lastLap = c.lastLap; o.bestLap = c.bestLap;
       o.gapAhead = c.gapAhead || 0; o.gapLeader = c.gapLeader || 0;
+      o.compound = m.compound; o.issue = this.faultPlans[i] && this.faultPlans[i].started && !this.faultPlans[i].ended ? this.faultPlans[i].kind : null;
       o.tyreWear = c.tyreWear; o.tyreGrip = c.tyreGrip; o.heat = c.heat; o.ers = c.ers; o.boosting = c.boosting;
       o.wrongWay = c.wrongWay; o.ghost = c.ghost > 0 ? Math.min(1, c.ghost / RECOVERY.ghostSeconds) : 0; o.finished = c.finished; o.finishTime = c.finishTime; o.contact = c.contact;
     }

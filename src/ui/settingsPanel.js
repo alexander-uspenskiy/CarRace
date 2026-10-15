@@ -78,7 +78,16 @@ export const CONTROLS_LIST = [
 ];
 
 export function controlsTable() {
-  return h('div.controls-grid', CONTROLS_LIST.map(([k, d]) => h('div.ctl-row', h('kbd', k), h('span', d))));
+  return h('div.controls-wrap',
+    h('div.controls-grid', CONTROLS_LIST.map(([k, d]) => h('div.ctl-row', h('kbd', k), h('span', d)))),
+    h('div.controls-touch',
+      h('div.ctl-row', h('kbd', '◀ ▶'), h('span', 'Steer (left thumb)')),
+      h('div.ctl-row', h('kbd', 'GAS'), h('span', 'Throttle (hold)')),
+      h('div.ctl-row', h('kbd', 'BRAKE'), h('span', 'Brake / reverse (hold)')),
+      h('div.ctl-row', h('kbd', 'BOOST'), h('span', 'ERS boost (hold)')),
+      h('div.ctl-row', h('kbd', 'CAM'), h('span', 'Change camera')),
+      h('div.ctl-row', h('kbd', 'RESET'), h('span', 'Reset car to track')),
+      h('div.ctl-row', h('kbd', 'II'), h('span', 'Pause'))));
 }
 
 /** Modal overlay with controls help; toggled by H. */

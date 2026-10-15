@@ -45,6 +45,7 @@ export function createCarState(pose, stats) {
     u: pose.speed || 0, v: 0, yawRate: 0, steerAngle: 0, ax: 0, ay: 0,
     inThrottle: 0, inBrake: 0, inSteer: 0,
     tyreWear: 0, tyreGrip: 1, heat: 0, ers: 1, boosting: false, wantBoost: false,
+    powerMult: 1, coolMult: 1, wearMult: 1, gripMult: 1,     // car trouble multipliers (carFaults.js)
     s: 0, d: 0, index: 0, surface: 'asphalt', progress: 0,
     lap: 1, lapStartT: 0, lastLap: null, bestLap: null, wrongWayT: 0,
     position: 0, grid: 0, finished: false, finishTime: null, ai: null, stats,
@@ -135,7 +136,7 @@ function substep(car, stats, input, env, h, hDerate, rev) {
 
   // longitudinal forces
   const throttle = input.throttle;
-  const Peff = (stats.power + (car.boosting ? stats.boostPower : 0)) * throttle;
+  const Peff = (stats.power + (car.boosting ? stats.boostPower : 0)) * throttle * (car.powerMult ?? 1);   // powerMult: AI car trouble
   let Fdrive = Math.min(Peff / Math.max(u, 4), 0.95 * muR * Fzr) * hDerate;   // overheated engine: less torque everywhere
   if (Fdrive < 0) Fdrive = 0;
   let Fxf = 0, Fxr = Fdrive;

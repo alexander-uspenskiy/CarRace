@@ -25,17 +25,29 @@ function wrapDs(ds, L) {
   return ds;
 }
 
-export function createAiDriver({ trackModel, stats, driver, difficulty = 'normal', rng, racingLine, paceOverride, noMistakes }) {
+/**
+ * `profile` (optional, from aiProfile.js) gives this driver a character: form on the day, mistakes by experience, tyre and
+ * engine management, aggression in traffic, wet-weather craft. Without it the driver behaves exactly as the plain model.
+ */
+export function createAiDriver({ trackModel, stats, driver, difficulty = 'normal', rng, racingLine, paceOverride, noMistakes, profile }) {
   const T = AI_TUNING;
   const model = trackModel;
   const line = racingLine || buildRacingLine(model, stats);
   const diff = DIFFICULTY[difficulty] || DIFFICULTY.normal;
   const skill = driver && driver.skill != null ? driver.skill : 0.9;
   const skillNorm = clamp((skill - 0.85) / 0.14, 0, 1);
-  const basePace = lerp(0.955, 1.0, skillNorm) * diff.paceScale;
-  const mistakeProb = diff.mistakeRate * (1 - skillNorm * 0.5);
+  const pf = profile || null;
+  const basePace = lerp(0.955, 1.0, skillNorm) * diff.paceScale * (pf ? 1 + pf.paceBias : 1);
+  const mistakeProb = diff.mistakeRate * (1 - skillNorm * 0.5) * (pf ? pf.mistakeScale : 1);
   const rand = rng || (() => 0.5);
-  const launchDelay = 0.18 + 0.25 * (1 - skillNorm) + 0.15 * rand();
+  const launchDelay = 0.18 + 0.25 * (1 - skillNorm) + 0.15 * rand() + (pf ? pf.launchExtra : 0);
+  // aggression: eager drivers need less of a speed advantage and less time stuck behind a car before going for a pass,
+  // and follow closer; cautious ones wait for a clear chance
+  const aggr = pf ? pf.aggression : 0.6;
+  const passFaster = pf ? T.passFasterBy * (1.45 - 0.75 * aggr) : T.passFasterBy;
+  const heldBefore = pf ? T.heldBeforePass * (1.3 - 0.6 * aggr) : T.heldBeforePass;
+  const keepGap = pf ? T.keepGap * (1.25 - 0.5 * aggr) : T.keepGap;
+  const boostHeatMax = pf ? pf.boostHeatMax : T.boostHeatMax;
   const N = model.N, ds = model.ds, L = model.length;
   const Lw = stats.cgToFront + stats.cgToRear;
   const top = (stats.derived && stats.derived.topSpeed) || 90;
@@ -91,6 +103,11 @@ export function createAiDriver({ trackModel, stats, driver, difficulty = 'normal
       }
       pace = basePace * rubber;
     }
+    if (pf && paceOverride == null) {
+      // slow swing in form over the race, wet-weather craft, and lifting off when the engine runs hot or the car is hurt
+      pace *= (1 + pf.formAmp * Math.sin(world.raceTime * (Math.PI * 2) / pf.formPeriod + pf.formPhase)) * pf.wetPace;
+      if (car.heat > pf.heatEase) pace *= 1 - 0.12 * clamp((car.heat - pf.heatEase) / 0.2, 0, 1);
+    }
     pace *= st.paceMult;
     let vt0 = vProfile * pace;
     if (vProfile < 0.9 * top) {
@@ -130,15 +147,15 @@ export function createAiDriver({ trackModel, stats, driver, difficulty = 'normal
     }
     // held-up timer: how long the car ahead has been slowing us
     if (blocker && Math.abs(blocker.d - car.d) < 2.2 && blockGap - T.bodyLen < 22 &&
-        blocker.u + clamp((blockGap - T.bodyLen - T.keepGap) * 0.6, -12, 14) < vt0 - 1.0) st.heldT += dt;
+        blocker.u + clamp((blockGap - T.bodyLen - keepGap) * 0.6, -12, 14) < vt0 - 1.0) st.heldT += dt;
     else st.heldT = Math.max(0, st.heldT - 2 * dt);
     let canPass = false;
-    if (st.passSide === 0 && blocker && st.passCool <= 0 && st.heldT > T.heldBeforePass &&
+    if (st.passSide === 0 && blocker && st.passCool <= 0 && st.heldT > heldBefore &&
         kHere < T.noPassCurv && kAhead < T.noPassCurv && world.raceTime > T.noPassBefore && u > 25) {
       // genuinely faster than the car ahead (compare at the blocker's own track position, so braking-zone
       // speed gradients in a pack do not count), and no real corner within the pass distance
       const vMeHere = spd[blocker.index] * pace * Math.sqrt(car.tyreGrip);
-      if (vMeHere > blocker.u + T.passFasterBy) {
+      if (vMeHere > blocker.u + passFaster) {
         const span = Math.ceil(T.passStraight / ds);
         let kmax = 0;
         for (let q = 0; q < span; q += 2) { const kk = Math.abs(curv[(idx + q) % N]); if (kk > kmax) kmax = kk; }
@@ -233,7 +250,7 @@ export function createAiDriver({ trackModel, stats, driver, difficulty = 'normal
     if (blocker) {
       const gap = blockGap - T.bodyLen;
       if (Math.abs(blocker.d - car.d) < 2.0 && gap < 22) {
-        const vlim = blocker.u + clamp((gap - T.keepGap) * 0.6, -12, 14);
+        const vlim = blocker.u + clamp((gap - keepGap) * 0.6, -12, 14);
         if (vlim < vt) vt = Math.max(vlim, 0);
       }
     }
@@ -268,7 +285,7 @@ export function createAiDriver({ trackModel, stats, driver, difficulty = 'normal
     if (launching) { throttle = 0; brake = 0; }
     out.throttle = throttle;
     out.brake = brake;
-    out.boost = !!(car.ers > 0.3 && car.heat < T.boostHeatMax && kAhead < T.boostCurv && kHere < T.boostCurv &&
+    out.boost = !!(car.ers > 0.3 && car.heat < boostHeatMax && kAhead < T.boostCurv && kHere < T.boostCurv &&
       throttle > 0.9 && u < 0.97 * top && !blocker);
     return out;
   }

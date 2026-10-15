@@ -15,6 +15,7 @@ export function createInput({ target = window, isRaceActive = () => false, onAct
   const pressed = new Set();
   let resetEdge = false;
   let override = null;
+  let touchSource = null;     // () => InputState partial (on-screen controls)
 
   const onKeyDown = (e) => {
     if (isTextTarget(e.target)) return;
@@ -51,11 +52,16 @@ export function createInput({ target = window, isRaceActive = () => false, onAct
     /** @returns {InputState}; `reset` is true for exactly one read after R was pressed. */
     read() {
       let inp = mergeInputs(keysToInput(pressed), readPad());
+      if (touchSource) inp = mergeInputs(inp, touchSource());
       inp = { ...inp, reset: resetEdge };
       resetEdge = false;
       if (override) inp = { ...inp, ...override };
       return inp;
     },
+    /** On-screen controls feed in here; merged like a gamepad (strongest analog wins, booleans OR). */
+    setTouchSource(fn) { touchSource = typeof fn === 'function' ? fn : null; },
+    /** One-shot reset request (the touch reset button), same edge as pressing R. */
+    pulseReset() { resetEdge = true; },
     setOverride(partial) { override = partial ? { ...partial } : null; },
     getOverride() { return override; },
     clear() { clearAll(); resetEdge = false; },

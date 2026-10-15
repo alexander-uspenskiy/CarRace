@@ -2,6 +2,7 @@
 import { clamp } from '../core/mathUtil.js';
 import { DIFFICULTY } from '../data/economy.js';
 import { TUNING } from './carPhysics.js';
+import { getWeather } from '../data/weather.js';
 
 export function tyreGripFromWear(w) {
   const c = clamp((w - 0.75) / 0.25, 0, 1);
@@ -12,10 +13,12 @@ export function stepTyreWear(car, stats, config, dt) {
   const diff = DIFFICULTY[config.difficulty] || DIFFICULTY.normal;
   const mu = stats.tyreMu;
   const load = clamp(Math.hypot(car.ax, car.ay) / (mu * TUNING.g * TUNING.wearLoadNorm), 0, 1.5);
-  let rate = config.tyreWearBase * stats.tyreWearMult * diff.tyreWearMult * (0.25 + 0.75 * load * load);
+  const wx = getWeather(config.weather);
+  let rate = config.tyreWearBase * stats.tyreWearMult * diff.tyreWearMult * (car.wearMult ?? 1) * (1 - 0.15 * wx.rain) * (0.25 + 0.75 * load * load);
   if (car.surface === 'grass') rate *= 0.5;
   car.tyreWear = Math.min(1, car.tyreWear + rate * dt);
-  car.tyreGrip = tyreGripFromWear(car.tyreWear);
+  // wet asphalt (weather) and car trouble scale the grip on top of the wear curve; the AI reads car.tyreGrip, so it adapts
+  car.tyreGrip = tyreGripFromWear(car.tyreWear) * wx.grip * (car.gripMult ?? 1);
 }
 
 /**
@@ -34,7 +37,7 @@ export function stepThermal(car, stats, dt, draft = 0) {
   // heat settles to an equilibrium set by throttle use, boost and the car's cooling stats (no run-away at 1.2).
   const dirty = clamp(draft / 0.18, 0, 1);
   const air = (TUNING.coolFloor + (1 - TUNING.coolFloor) * Math.min(1, Math.max(0, car.u) / TUNING.coolSpeedRef)) * (1 - TUNING.dirtyAirCooling * dirty);
-  const cool = stats.coolRate * air * (TUNING.coolBase + (1 - TUNING.coolBase) * car.heat / TUNING.coolRefHeat);
+  const cool = stats.coolRate * (car.coolMult ?? 1) * air * (TUNING.coolBase + (1 - TUNING.coolBase) * car.heat / TUNING.coolRefHeat);
   car.heat = clamp(car.heat + (stats.heatGain * thr + (car.boosting ? TUNING.boostHeat : 0) - cool) * dt, 0, 1.2);
   // 'car:overheat' once per excursion above 1.0: re-armed only when well below and at most every 8 s (no warning spam
   // while the heat hovers around the limit)

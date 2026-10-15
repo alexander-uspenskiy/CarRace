@@ -11,6 +11,7 @@ import { AudioEngine } from '../audio/audioEngine.js';
 import { RaceSim } from '../sim/raceSim.js';
 import { createFlowMachine } from '../ui/flowMachine.js';
 import { createInput } from '../ui/input.js';
+import { createTouchControls } from '../ui/touchControls.js';
 import { createHud } from '../ui/hud.js';
 import { createRaceConfig } from '../ui/dataRefs.js';
 import { h } from '../ui/dom.js';
@@ -99,7 +100,7 @@ export function createGame({ canvas, uiRoot, storage, bus, onError = () => {} })
   };
 
   // ---------- HUD, help, input ----------
-  const hud = createHud({ root: uiRoot, bus, save, onPause: () => game.pause() });
+  const hud = createHud({ root: uiRoot, bus, save, onPause: () => game.pause(), onSkipIntro: () => handleAction('enter') });
   game.hud = hud;
   const help = createHelpOverlay(uiRoot);
   game.help = help;
@@ -108,6 +109,14 @@ export function createGame({ canvas, uiRoot, storage, bus, onError = () => {} })
     onAction: (a) => handleAction(a),
   });
   game.input = input;
+  // on-screen controls (shown only while racing; CSS keeps them hidden unless <html> has the `touch` class)
+  const touch = createTouchControls({
+    root: uiRoot,
+    onAction: (a) => handleAction(a),
+    onReset: () => input.pulseReset(),
+  });
+  input.setTouchSource(touch.read);
+  game.touch = touch;
 
   function handleAction(a) {
     const st = flow.state;
@@ -210,7 +219,8 @@ export function createGame({ canvas, uiRoot, storage, bus, onError = () => {} })
     try {
       bus.emit('flow:state', { from, to, params });
       if (to === 'paused') audio.setPaused(true);
-      else if (to === 'race') { audio.setPaused(false); input.clear(); hud.show(); try { document.activeElement?.blur?.(); } catch { /* ignore */ } }
+      touch.setVisible(to === 'race');
+      if (to === 'race') { audio.setPaused(false); input.clear(); hud.show(); try { document.activeElement?.blur?.(); } catch { /* ignore */ } }
       if (inRaceState(from) && !inRaceState(to)) leaveRace();
       // the HUD must never stay on screen outside race/paused (e.g. __game.goto('title') mid-race)
       if (!inRaceState(to)) { if (hud.el && !hud.el.classList.contains('hidden')) { hud.end(); hud.hide(); } }
@@ -231,6 +241,7 @@ export function createGame({ canvas, uiRoot, storage, bus, onError = () => {} })
       difficulty: opts.difficulty ?? last.difficulty,
       driverIndex: opts.driverIndex ?? last.driverIndex ?? 0,
       seed: opts.seed ?? (Date.now() % 2147483647),
+      weather: opts.weather,
       autopilot: !!opts.autopilot,
       skipIntro: !!opts.skipIntro,
       allowNoRender: !!opts.allowNoRender,
@@ -246,10 +257,11 @@ export function createGame({ canvas, uiRoot, storage, bus, onError = () => {} })
     const sv = save.get();
     const config = createRaceConfig({
       trackId: o.trackId, minutes: o.minutes, difficulty: o.difficulty, teamId: o.teamId,
-      driverIndex: o.driverIndex === 1 ? 1 : 0, playerName: sv.playerName, seed: o.seed,
+      driverIndex: o.driverIndex === 1 ? 1 : 0, playerName: sv.playerName, seed: o.seed, weather: o.weather,
       upgrades: save.getUpgrades(o.teamId), steerAssist: sv.settings.steerAssist,
     }, trackDef);
 
+    lastOpts.weather = config.weather;      // a restart keeps the conditions (only the seed re-rolls)
     const newSim = new RaceSim({ config, trackModel, emit: (n, p) => bus.emit(n, p) });
     sim = newSim;
     lastResults = null;
@@ -257,7 +269,7 @@ export function createGame({ canvas, uiRoot, storage, bus, onError = () => {} })
 
     if (host) {
       renderer = new RaceController({
-        trackDef, trackModel, carMetas: newSim.carMetas, playerId: newSim.playerId, quality: sv.settings.quality,
+        trackDef, trackModel, carMetas: newSim.carMetas, playerId: newSim.playerId, quality: sv.settings.quality, weather: config.weather,
       });
       activeController = null;
       setController(renderer);
@@ -438,6 +450,7 @@ export function createGame({ canvas, uiRoot, storage, bus, onError = () => {} })
       cancelAnimationFrame(rafId);
       cleanups.forEach((c) => c());
       input.dispose();
+      touch.dispose();
       disposeRenderer();
       hud.dispose();
       audio.dispose();

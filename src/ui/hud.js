@@ -2,20 +2,22 @@
 import { h, clear, setText, setStyle, setClass, kph, mph, fmtClock, fmtLap, fmtGap } from './dom.js';
 import { estimateRaceSeconds } from '../core/lapMath.js';
 import { Minimap } from '../render/minimap.js';
+import { getWeather } from '../data/weather.js';
 
 const TOWER_ROWS = 10;
 const COMPACT_ROWS = 5;
 const COMPACT_MQ = '(max-width: 700px), (max-height: 500px)';
 
-export function createHud({ root, bus, save, onPause = () => {} }) {
+export function createHud({ root, bus, save, onPause = () => {}, onSkipIntro = () => {} }) {
   // ---------- static structure ----------
   const towerRows = [];
   const tower = h('div.hud-tower');
   for (let i = 0; i <= TOWER_ROWS; i++) {
     const row = {
       el: h('div.t-row'),
-      pos: h('span.t-pos'), chip: h('span.t-chip'), code: h('span.t-code'), gap: h('span.t-gap'),
+      pos: h('span.t-pos'), chip: h('span.t-chip'), codeTxt: h('span'), tyre: h('span.t-tyre'), gap: h('span.t-gap'),
     };
+    row.code = h('span.t-code', row.codeTxt, row.tyre);
     row.el.append(row.pos, row.chip, row.code, row.gap);
     if (i === TOWER_ROWS) row.el.classList.add('t-extra');
     tower.append(row.el);
@@ -65,10 +67,11 @@ export function createHud({ root, bus, save, onPause = () => {} }) {
   const toasts = h('div.hud-toasts');
   const warn = h('div.hud-warn');
   const banner = h('div.hud-banner');
-  const introHint = h('div.hud-intro', 'PRESS ENTER TO SKIP INTRO');
+  const introHint = h('div.hud-intro', { onclick: () => onSkipIntro() }, h('span.kb', 'PRESS ENTER'), h('span.tp', 'TAP'), ' TO SKIP INTRO');
   const hint = h('div.hud-hint', 'ESC pause   C camera   R reset   H help');
+  const weatherEl = h('div.hud-weather');
 
-  const el = h('div.hud.hidden', tower, topRight, speedo, gauges, mapWrap, lightsEl, toasts, warn, banner, introHint, hint, pauseBtn);
+  const el = h('div.hud.hidden', tower, topRight, speedo, gauges, mapWrap, lightsEl, toasts, warn, banner, introHint, hint, weatherEl, pauseBtn);
   root.append(el);
 
   // ---------- state ----------
@@ -124,6 +127,13 @@ export function createHud({ root, bus, save, onPause = () => {} }) {
   on('car:overheat', (e) => {
     if (info && e.carId === info.playerId) toast('ENGINE OVERHEATING', 'red', 2600);
   });
+  on('car:issue', (e) => {
+    if (!info || e.phase !== 'start' || !lastSnap) return;
+    // news only for cars that matter: the front of the field or the player's neighbours
+    const c = lastSnap.cars[e.carId], me = lastSnap.cars[info.playerId];
+    if (!c || !me || (c.position > 8 && Math.abs(c.position - me.position) > 2)) return;
+    toast(`${codeOf(e.carId)}  ${e.label}`, 'amber', 3000);
+  });
   on('car:wall', (e) => {
     if (info && e.carId === info.playerId && e.speed > 12) toast('IMPACT', 'red', 1400);
   });
@@ -151,6 +161,8 @@ export function createHud({ root, bus, save, onPause = () => {} }) {
       minimap = null;
       console.error('[hud] minimap failed', e);
     }
+    const wx = getWeather(i.config.weather);
+    setText(weatherEl, wx.grip < 1 ? `${wx.label} · GRIP -${Math.round((1 - wx.grip) * 100)}%` : wx.label);
     el.style.setProperty('--team', i.carMetas?.[i.playerId]?.color || '#e10600');
     setText(lapTotal, `/${i.config.laps}`);
     setText(posTotal, `/${i.carMetas?.length ?? 20}`);
@@ -271,7 +283,10 @@ export function createHud({ root, bus, save, onPause = () => {} }) {
     if (!c) return;
     setText(row.pos, idx + 1);
     setStyle(row.chip, 'background', c.color);
-    setText(row.code, c.code);
+    setText(row.codeTxt, c.code);
+    setText(row.tyre, c.compound ? c.compound[0].toUpperCase() : '');
+    row.tyre.className = 't-tyre' + (c.compound ? ' ' + c.compound : '');
+    setClass(row.el, 'issue', !!c.issue);
     let g;
     if (c.finished) g = 'FIN';
     else if (idx === 0) g = 'LEADER';

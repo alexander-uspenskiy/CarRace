@@ -4,6 +4,8 @@ import { getTeam } from '../data/teams.js';
 import { buildTrackMesh } from './trackMesh.js';
 import { buildScenery } from './scenery.js';
 import { buildSky } from './sky.js';
+import { buildRain } from './rain.js';
+import { themeForWeather } from '../data/weather.js';
 import { buildCarModel, updateCarModel, disposeCarModel, setCarShadow } from './carModel.js';
 import { CameraRig, carFrameToWorld } from './cameras.js';
 import { ParticleSystem } from './particles.js';
@@ -13,7 +15,10 @@ const CULL_DIST2 = 650 * 650;
 const FX_DIST2 = 140 * 140;
 
 export class RaceController {
-  constructor({ trackDef, trackModel, carMetas, playerId, quality = 'high' }) {
+  constructor({ trackDef: baseDef, trackModel, carMetas, playerId, quality = 'high', weather = 'clear' }) {
+    // the weather re-tints the circuit's theme (greyer sky / fog, damp asphalt and grass) for every renderer below
+    const trackDef = baseDef ? { ...baseDef, theme: themeForWeather(baseDef.theme, weather) } : baseDef;
+    this.weather = weather;
     this.trackDef = trackDef;
     this.trackModel = trackModel;
     this.carMetas = carMetas;
@@ -32,6 +37,8 @@ export class RaceController {
     this.sky = buildSky(theme, { quality });
     this.scene.add(this.sky.mesh, this.sky.hemi, this.sky.sun, this.sky.sun.target);
     this.scene.fog = this.sky.fog;
+    this.rain = theme.weather && theme.weather.rain > 0 ? buildRain({ quality, intensity: theme.weather.rain }) : null;
+    if (this.rain) this.scene.add(this.rain.mesh);
 
     // track + scenery
     this.track = buildTrackMesh(trackModel, trackDef, { quality });
@@ -88,7 +95,8 @@ export class RaceController {
     this.sky.setShadow(hi);
     this.track.userData.setShadowReceive(hi);
     if (this.playerModel) setCarShadow(this.playerModel, hi, !hi);
-    this.sky.fog.far = hi ? 1100 : 700;
+    this.sky.fog.far = Math.min(this.sky.weatherFogFar, hi ? 1100 : 700);
+    if (this.rain) this.rain.setQuality(hi);
   }
 
   // ---- camera
@@ -126,7 +134,8 @@ export class RaceController {
     if (!player) return;
     this.rig.update(dt, player, snap.phase, snap.introT || 0, snap.time);
     const cp = this.camera.position;
-    this.sky.update(cp, player.x, player.y);
+    this.sky.update(cp, player.x, player.y, snap.time);
+    if (this.rain) this.rain.update(cp, snap.time);
     // distance culling (fog hides them anyway)
     for (let i = 0; i < n; i++) {
       const m = this.models[i];
@@ -184,6 +193,7 @@ export class RaceController {
     this.track.userData.dispose();
     this.scenery.userData.dispose();
     this.sky.dispose();
+    if (this.rain) this.rain.dispose();
     this.fx.dispose();
     this.models.forEach((m) => m && disposeCarModel(m));
     this.scene.clear();

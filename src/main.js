@@ -27,8 +27,11 @@ try {
     const { createMemoryStorage } = await import('./core/storage.js');
     storage = createMemoryStorage();
   }
+  const { installDeviceMode } = await import('./ui/device.js');
+  const device = installDeviceMode();   // sets <html class="touch"> on phones / tablets (?touch=1 / ?touch=0 force it)
   const { createGame } = await import('./game/game.js');
   const game = createGame({ canvas, uiRoot, storage, onError: (m) => debug.pushError(m) });
+  game.device = device;
   debug.attach(game);
   window.addEventListener('pagehide', () => { try { game.dispose(); } catch { /* ignore */ } });
 } catch (e) {

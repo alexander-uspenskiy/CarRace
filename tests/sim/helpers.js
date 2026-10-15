@@ -19,7 +19,7 @@ export function calibrationStats() {
 export function makeConfig(over = {}) {
   return createRaceConfig({
     trackId: 'monte-veloce', minutes: 5, difficulty: 'normal', teamId: 'mclaren', driverIndex: 0,
-    playerName: 'PLAYER', seed: 7, upgrades: {}, ...over,
+    playerName: 'PLAYER', seed: 7, upgrades: {}, weather: 'clear', ...over,   // dry by default: baseline physics tests must not depend on the seed's weather
   });
 }
 
