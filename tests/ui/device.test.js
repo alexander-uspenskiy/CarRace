@@ -48,3 +48,10 @@ test('pedalFromDrag: up = gas, down = brake, with a dead zone', () => {
   assert.equal(holdsToInput({ pedal: -0.5 }).brake, 0.5);
   assert.equal(holdsToInput({ pedal: -1, gas: true }).throttle, 1);
 });
+
+test('buildId reads the ?v= stamp from the main script tag', async () => {
+  const { buildId } = await import('../../src/version.js');
+  const doc = { querySelector: () => ({ getAttribute: () => './src/main.js?v=10152301' }) };
+  assert.equal(buildId(doc), '10152301');
+  assert.equal(buildId({ querySelector: () => null }), '');
+});

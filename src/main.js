@@ -1,9 +1,11 @@
 // Entry point. Only debug.js is imported statically so that a failure in any other module
 // (or missing WebGL) shows a friendly message instead of a blank page.
 import { createDebug } from './debug.js';
+import { showVersion } from './version.js';
 
 const params = new URLSearchParams(location.search);
 const debug = createDebug({ verbose: params.get('debug') === '1' });
+showVersion();
 
 function showFatal(title, message) {
   const root = document.getElementById('ui-root') || document.body;

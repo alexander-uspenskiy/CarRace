@@ -1,5 +1,5 @@
 // On-screen driving controls for touch devices. Right thumb: a floating analog steering zone (touch anywhere on the right
-// side, drag left/right). Left thumb: brake / gas (slide between them), boost, camera, reset.
+// side, drag left/right). Left thumb: boost, camera, reset. The stick's vertical axis is the pedal (up = gas, down = brake).
 // Multi-touch safe: every finger is tracked by its own pointer, so steering and the pedals work together.
 import { h } from './dom.js';
 
@@ -118,8 +118,6 @@ export function createTouchControls({ root, onAction = () => {}, onReset = () =>
     return btn;
   }
 
-  const gas = holdButton('tc-gas', 'GAS');
-  const brake = holdButton('tc-brake', 'BRAKE');
   const boost = holdButton('tc-boost', 'BOOST', 'ERS boost');
   const cam = tapButton('tc-cam', 'CAM', () => onAction('camera'));
   const reset = tapButton('tc-reset', 'RESET', () => onReset());
@@ -178,10 +176,8 @@ export function createTouchControls({ root, onAction = () => {}, onReset = () =>
   zone.addEventListener('lostpointercapture', zoneEnd);
   zone.addEventListener('contextmenu', (e) => e.preventDefault());
 
-  const pedals = h('div.tc-pedals', brake, gas);
   const aux = h('div.tc-aux', boost, cam, reset);
-  const el = h('div.tc.hidden', zone, h('div.tc-lgroup', aux, pedals));
-  holdGroup(pedals, [['brake', brake], ['gas', gas]]);
+  const el = h('div.tc.hidden', zone, h('div.tc-lgroup', aux));
   holdGroup(boost, [['boost', boost]]);
   // the controls must never scroll / zoom / select the page
   el.addEventListener('touchstart', (e) => { if (e.cancelable) e.preventDefault(); }, { passive: false });

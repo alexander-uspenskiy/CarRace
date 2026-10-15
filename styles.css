@@ -630,17 +630,13 @@ html.touch .tc { display: block; }
 .tc-btn span { pointer-events: none; }
 .tc-boost { touch-action: none; }
 .tc-btn.down { background: color-mix(in srgb, var(--team, #e10600) 72%, rgba(0,0,0,0.35)); border-color: #fff; transform: scale(0.96); }
-.tc-zone { position: absolute; left: 38%; right: 0; top: 50px; bottom: 0; pointer-events: auto; touch-action: none; }
+.tc-zone { position: absolute; left: 0; right: 0; top: 50px; bottom: 0; pointer-events: auto; touch-action: none; }
 .tc-ring { position: absolute; width: var(--r, 120px); height: var(--r, 120px); margin: calc(var(--r, 120px) / -2) 0 0 calc(var(--r, 120px) / -2); border-radius: 50%; border: 2px solid rgba(255,255,255,0.35); background: rgba(10,12,18,0.28); opacity: 0; transition: opacity .12s; pointer-events: none; }
 .tc-ring.on { opacity: 1; }
 .tc-ring.gas { border-color: rgba(53,208,127,0.9); }
 .tc-ring.brk { border-color: rgba(255,77,77,0.9); }
 .tc-knob { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; background: rgba(255,255,255,0.85); box-shadow: 0 0 10px rgba(0,0,0,0.5); }
 .tc-lgroup { position: absolute; left: 14px; bottom: 14px; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
-.tc-pedals { display: flex; align-items: flex-end; gap: 12px; touch-action: none; pointer-events: auto; }
-.tc-brake { width: var(--tc-s); height: var(--tc-s); font-size: 13px; }
-.tc-gas { width: calc(var(--tc-s) * 1.18); height: calc(var(--tc-s) * 1.5); font-size: 17px; border-color: rgba(53,208,127,0.8); }
-.tc-brake { border-color: rgba(255,77,77,0.8); }
 .tc-aux { display: flex; gap: 8px; align-items: flex-end; }
 .tc-aux .tc-btn { height: 44px; min-width: 62px; padding: 0 10px; border-radius: 22px; font-size: 12px; }
 .tc-boost { border-color: rgba(74,184,255,0.85); }
@@ -673,11 +669,9 @@ html.touch .tc { display: block; }
 @media (max-width: 700px) and (min-height: 501px) {
   html.touch .tc { --tc-s: clamp(46px, calc((100vw - 60px) / 5.4), 64px); }
   html.touch .tc-lgroup { left: 10px; bottom: 10px; gap: 8px; }
-  html.touch .tc-pedals { gap: 8px; }
-  html.touch .tc-aux { gap: 6px; }
+  html.touch   html.touch .tc-aux { gap: 6px; }
   html.touch .tc-aux .tc-btn { height: 36px; min-width: 52px; padding: 0 8px; font-size: 11px; }
   html.touch .tc-btn { border-radius: 14px; font-size: 12px; }
-  html.touch .tc-gas { font-size: 14px; }
   /* HUD: compact, kept to the sides so the car stays visible in the middle */
   html.touch .hud-topright { left: 6px; right: 6px; top: 6px; padding: 4px 48px 4px 8px; }
   html.touch .hud-topright .big { font-size: 22px; }
@@ -724,3 +718,6 @@ html.touch .tc { display: block; }
 /* comfortable tap targets for the menus */
 html.touch .tab { min-height: 40px; }
 html.touch .tabs.sub .tab { min-height: 36px; }
+
+/* build / version tag, top centre */
+.app-version { position: fixed; top: env(safe-area-inset-top, 0px); left: 50%; transform: translateX(-50%); z-index: 60; font: 600 9px/1 var(--mono, monospace); letter-spacing: .06em; color: rgba(255,255,255,0.55); text-shadow: 0 1px 2px rgba(0,0,0,0.9); pointer-events: none; white-space: nowrap; padding: 1px 0; }
