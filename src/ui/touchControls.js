@@ -7,8 +7,9 @@ import { h } from './dom.js';
 export function holdsToInput(hold) {
   return {
     steer: Math.max(-1, Math.min(1, (hold.right ? 1 : 0) - (hold.left ? 1 : 0) + (hold.axis || 0))),
-    throttle: hold.gas ? 1 : 0,
-    brake: hold.brake ? 1 : 0,
+    // the stick's vertical axis is an analog pedal (up = gas, down = brake); the buttons stay as full-on alternatives
+    throttle: Math.max(hold.gas ? 1 : 0, hold.pedal > 0 ? hold.pedal : 0),
+    brake: Math.max(hold.brake ? 1 : 0, hold.pedal < 0 ? -hold.pedal : 0),
     handbrake: false,
     boost: !!hold.boost,
     reset: false,
@@ -28,12 +29,24 @@ export function steerFromDrag(dx, radius) {
 }
 
 /**
+ * Pure: vertical drag distance (px, screen coords: up is negative) -> pedal in [-1, 1], + = gas, - = brake.
+ * Needs a deliberate push (dead zone) so steering with a slightly wandering thumb never touches the pedals.
+ */
+export function pedalFromDrag(dy, radius) {
+  const v = Math.max(-1, Math.min(1, -dy / radius));
+  const dead = 0.3;
+  const a = Math.abs(v);
+  if (a < dead) return 0;
+  return Math.sign(v) * Math.min(1, (a - dead) / (0.9 - dead));
+}
+
+/**
  * createTouchControls({ root, onAction, onReset })
  *   onAction('camera') for the camera button; onReset() for the reset button (one-shot).
  * API: el, read() -> InputState partial, setVisible(bool), release() (drop every held button), dispose().
  */
 export function createTouchControls({ root, onAction = () => {}, onReset = () => {} } = {}) {
-  const hold = { gas: false, brake: false, boost: false, axis: 0 };
+  const hold = { gas: false, brake: false, boost: false, axis: 0, pedal: 0 };
   const active = new Map();   // pointerId -> { group, key }
 
   // hold state is always derived from the live pointers, so two fingers on one button / a lost event can never stick or drop a key
@@ -117,16 +130,17 @@ export function createTouchControls({ root, onAction = () => {}, onReset = () =>
   const zone = h('div.tc-zone', { 'aria-label': 'Steering: touch and drag left or right' }, ring);
   let steerPtr = null;                      // { id, ox, oy }
   const radius = () => Math.max(44, Math.min(72, window.innerWidth * 0.15));
-  function drawSteer(dx) {
+  function drawSteer(dx, dy = 0) {
     const r = radius();
     ring.style.setProperty('--r', r * 2 + 'px');
-    knob.style.transform = 'translate(' + Math.max(-r, Math.min(r, dx)) + 'px, 0)';
+    knob.style.transform = 'translate(' + Math.max(-r, Math.min(r, dx)) + 'px, ' + Math.max(-r, Math.min(r, dy)) + 'px)';
   }
   function endSteer() {
     steerPtr = null;
     hold.axis = 0;
-    ring.classList.remove('on');
-    drawSteer(0);
+    hold.pedal = 0;
+    ring.classList.remove('on', 'gas', 'brk');
+    drawSteer(0, 0);
   }
   zone.addEventListener('pointerdown', (e) => {
     e.preventDefault();
@@ -138,18 +152,25 @@ export function createTouchControls({ root, onAction = () => {}, onReset = () =>
     ring.style.top = (e.clientY - box.top) + 'px';
     ring.classList.add('on');
     hold.axis = 0;
-    drawSteer(0);
+    hold.pedal = 0;
+    drawSteer(0, 0);
     buzz();
   });
   zone.addEventListener('pointermove', (e) => {
     if (!steerPtr || e.pointerId !== steerPtr.id) return;
     const r = radius();
     let dx = e.clientX - steerPtr.ox;
+    let dy = e.clientY - steerPtr.oy;
     const lim = r * 1.25;
     if (dx > lim) { steerPtr.ox = e.clientX - lim; dx = lim; }
     else if (dx < -lim) { steerPtr.ox = e.clientX + lim; dx = -lim; }
+    if (dy > lim) { steerPtr.oy = e.clientY - lim; dy = lim; }
+    else if (dy < -lim) { steerPtr.oy = e.clientY + lim; dy = -lim; }
     hold.axis = steerFromDrag(dx, r);
-    drawSteer(dx);
+    hold.pedal = pedalFromDrag(dy, r);
+    ring.classList.toggle('gas', hold.pedal > 0);
+    ring.classList.toggle('brk', hold.pedal < 0);
+    drawSteer(dx, dy);
   });
   const zoneEnd = (e) => { if (steerPtr && e.pointerId === steerPtr.id) endSteer(); };
   zone.addEventListener('pointerup', zoneEnd);

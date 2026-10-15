@@ -633,6 +633,8 @@ html.touch .tc { display: block; }
 .tc-zone { position: absolute; left: 38%; right: 0; top: 50px; bottom: 0; pointer-events: auto; touch-action: none; }
 .tc-ring { position: absolute; width: var(--r, 120px); height: var(--r, 120px); margin: calc(var(--r, 120px) / -2) 0 0 calc(var(--r, 120px) / -2); border-radius: 50%; border: 2px solid rgba(255,255,255,0.35); background: rgba(10,12,18,0.28); opacity: 0; transition: opacity .12s; pointer-events: none; }
 .tc-ring.on { opacity: 1; }
+.tc-ring.gas { border-color: rgba(53,208,127,0.9); }
+.tc-ring.brk { border-color: rgba(255,77,77,0.9); }
 .tc-knob { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; background: rgba(255,255,255,0.85); box-shadow: 0 0 10px rgba(0,0,0,0.5); }
 .tc-lgroup { position: absolute; left: 14px; bottom: 14px; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
 .tc-pedals { display: flex; align-items: flex-end; gap: 12px; touch-action: none; pointer-events: auto; }
