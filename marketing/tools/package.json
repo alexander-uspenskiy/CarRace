@@ -1,0 +1,7 @@
+{
+  "name": "carrace-marketing-capture",
+  "private": true,
+  "type": "module",
+  "description": "Screenshot capture for marketing. Install deps with: npm install (puppeteer-core drives the system Google Chrome).",
+  "dependencies": { "puppeteer-core": "^24.0.0" }
+}
