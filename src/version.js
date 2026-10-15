@@ -1,5 +1,5 @@
 // Release number shown at the top of the screen. The build id is the ?v= stamp on the main script tag (set by tools/bump.sh).
-export const VERSION = '1.3.0';
+export const VERSION = '1.3.1';
 
 export function buildId(doc = typeof document !== 'undefined' ? document : null) {
   try {

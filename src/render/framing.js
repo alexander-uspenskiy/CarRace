@@ -70,8 +70,11 @@ export function solveFraming(e, W, H, pad = {}, margin = 0.85) {
   let fh = H - t - b;
   let x0 = l;
   let y0 = t;
-  if (fw < W * 0.25) { fw = W * 0.25; x0 = (W - fw) / 2; }
-  if (fh < H * 0.25) { fh = H * 0.25; y0 = (H - fh) / 2; }
+  // keep the free rectangle's CENTRE when it is widened (a short gap between two panels on a phone must still hold the car there,
+  // not drag it to the middle of the canvas behind a panel); only shift it back inside the canvas
+  const minW = W * 0.12, minH = H * 0.12;
+  if (fw < minW) { const c = x0 + fw / 2; fw = minW; x0 = Math.min(W - fw, Math.max(0, c - fw / 2)); }
+  if (fh < minH) { const c = y0 + fh / 2; fh = minH; y0 = Math.min(H - fh, Math.max(0, c - fh / 2)); }
   const su = Math.max(1e-4, e.uMax - e.uMin);
   const sv = Math.max(1e-4, e.vMax - e.vMin);
   let f = Math.min((fw * margin) / su, (fh * margin) / sv);

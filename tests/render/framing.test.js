@@ -114,3 +114,10 @@ test('showPodium tolerates short / odd lists and unknown teams', () => {
   assert.equal(pv.podium.visible, false);
   pv.dispose();
 });
+
+test('solveFraming: a short free band between two panels keeps the subject in that band', () => {
+  const e = { uMin: -0.33, uMax: 0.33, vMin: -0.14, vMax: 0.09 };
+  const fr = solveFraming(e, 414, 700, { left: 44, right: 44, top: 61, bottom: 465 }, 0.8);   // 174 px band, 25% of H = 175
+  assert.ok(Math.abs(fr.free.y + fr.free.h / 2 - (61 + 174 / 2)) < 1);
+  assert.ok(fr.offsetY > 150);
+});
