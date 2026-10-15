@@ -628,6 +628,7 @@ html.touch .hud-hint, html.touch .hud-weather { display: none; }
 html.touch .tc { display: block; }
 .tc-btn { pointer-events: auto; touch-action: none; display: flex; align-items: center; justify-content: center; padding: 0; margin: 0; border: 2px solid rgba(255,255,255,0.38); border-radius: 18px; background: rgba(10,12,18,0.52); color: #fff; font-weight: 900; letter-spacing: .08em; font-size: 14px; text-shadow: none; -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); -webkit-tap-highlight-color: transparent; }
 .tc-btn span { pointer-events: none; }
+.tc-steer, .tc-pedals, .tc-boost { touch-action: none; pointer-events: auto; }
 .tc-btn.down { background: color-mix(in srgb, var(--team, #e10600) 72%, rgba(0,0,0,0.35)); border-color: #fff; transform: scale(0.96); }
 .tc-steer { position: absolute; left: 14px; bottom: 14px; display: flex; gap: 12px; }
 .tc-steer .tc-btn { width: var(--tc-s); height: var(--tc-s); font-size: calc(var(--tc-s) * 0.4); }
@@ -665,11 +666,48 @@ html.touch .tc { display: block; }
 }
 /* phone portrait: controls take the bottom ~210px, the speedo and gauges ride above them */
 @media (max-width: 700px) and (min-height: 501px) {
-  html.touch .tc { --tc-s: clamp(54px, calc((100vw - 60px) / 4.3), 78px); }
-  html.touch .tc-rgroup { flex-direction: column; align-items: flex-end; gap: 10px; }
-  html.touch .hud-speedo { bottom: 214px; }
-  html.touch .hud-gauges { bottom: 306px; }
+  html.touch .tc { --tc-s: clamp(46px, calc((100vw - 60px) / 5.4), 64px); }
+  html.touch .tc-steer { left: 10px; bottom: 10px; gap: 8px; }
+  html.touch .tc-rgroup { flex-direction: column; align-items: flex-end; gap: 8px; right: 10px; bottom: 10px; }
+  html.touch .tc-pedals { gap: 8px; }
+  html.touch .tc-aux { gap: 6px; }
+  html.touch .tc-aux .tc-btn { height: 36px; min-width: 52px; padding: 0 8px; font-size: 11px; }
+  html.touch .tc-btn { border-radius: 14px; font-size: 12px; }
+  html.touch .tc-gas { font-size: 14px; }
+  /* HUD: compact, kept to the sides so the car stays visible in the middle */
+  html.touch .hud-topright { left: 6px; right: 6px; top: 6px; padding: 4px 48px 4px 8px; }
+  html.touch .hud-topright .big { font-size: 22px; }
+  html.touch .hud-topright .clock { font-size: 18px; }
+  html.touch .hud-topright .laps { padding: 2px 6px; }
+  html.touch .hud-topright .laps > div { font-size: 11px; }
+  html.touch .hud-topright .laps label { font-size: 9px; }
+  html.touch .hud-pause { right: 10px; top: 10px; width: 32px; height: 32px; }
+  html.touch .hud-tower { left: 6px; top: 96px; width: 128px; }
+  html.touch .hud .t-row { font-size: 11px; padding: 1px 5px; grid-template-columns: 18px 4px 1fr 44px; gap: 4px; }
+  html.touch .hud .t-row .t-gap { font-size: 10px; }
+  html.touch .hud .t-head { font-size: 9px; grid-template-columns: 18px 1fr 44px; }
+  html.touch .hud .t-tyre { display: none; }
+  html.touch .hud-minimap { right: 6px; top: 96px; width: 84px; height: 84px; }
+  html.touch .hud-speedo { left: 6px; transform: none; bottom: calc(var(--tc-s, 60px) + 22px); width: 150px; padding: 3px 8px 5px; }
+  html.touch .hud-speedo .speed-val { font-size: 32px; min-width: 64px; }
+  html.touch .hud-speedo .gear-val { font-size: 24px; min-width: 20px; }
+  html.touch .hud-speedo .speed-row { gap: 8px; }
+  html.touch .hud-speedo .gear-box label, html.touch .hud-speedo .speed-unit { display: none; }
+  html.touch .hud-speedo .rpm { height: 6px; margin-top: 3px; }
+  html.touch .hud-gauges { left: 6px; bottom: calc(var(--tc-s, 60px) + 80px); width: 150px; padding: 4px 6px; gap: 2px; }
+  html.touch .gauge { grid-template-columns: 38px 1fr 40px; font-size: 9.5px; gap: 4px; }
+  html.touch .gauge .val { font-size: 9.5px; }
+  html.touch .gauge .track { height: 7px; }
   html.touch .hud-intro { bottom: auto; top: 46%; }
+}
+/* phone portrait menus: the scrolling body must hold its content (no clipped, overlapping panels) */
+@media (max-width: 700px) {
+  .screen-garage .col-left, .screen-garage .col-right, .screen-team .col-left, .screen-team .col-right { max-height: none; overflow: visible; }
+  .screen-garage .col-left { flex: none; }
+  .screen-garage .center-pick { padding: 0 8px; }
+  .screen-garage .garage-body { padding-bottom: 8px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; }
+  .screen-team .team-body { touch-action: pan-y; overscroll-behavior: contain; }
+  .arrow { width: 36px; height: 52px; }
 }
 /* tablets: bigger pads, HUD stays where it is (it has room) */
 @media (min-width: 701px) and (min-height: 501px) {
