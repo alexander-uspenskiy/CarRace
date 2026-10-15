@@ -5,7 +5,8 @@ import { computeCarStats } from '../data/carStats.js';
 import { aiLevelsFor } from '../data/raceConfig.js';
 import { getTrackDef } from '../data/tracks/index.js';
 import { advanceAccumulator } from './fixedStep.js';
-import { createCarState, SIM_HZ, SIM_DT, gearAndRpm } from './carPhysics.js';
+import { createCarState, SIM_HZ, SIM_DT, gearAndRpm, crashDamage, MAX_DAMAGE } from './carPhysics.js';
+import { DIFFICULTY } from '../data/economy.js';
 import { stepCar } from './carStep.js';
 import { resolveCarCar } from './collisions.js';
 import { buildGrid, gridPose, createDirector } from './raceDirector.js';
@@ -107,7 +108,9 @@ export class RaceSim {
       car.id = g.carId; car.grid = g.slot + 1; car.position = g.slot + 1;
       car.tyreGrip = getWeather(config.weather).grip;     // damp track from the first metre
       car.mode = metas[g.carId].isPlayer ? 'player' : 'ai';
-      car.assist = metas[g.carId].isPlayer ? (config.steerAssist ?? 0.5) : 0;
+      const dcfg = DIFFICULTY[config.difficulty] ?? DIFFICULTY.normal;
+      car.assist = metas[g.carId].isPlayer ? Math.max(config.steerAssist ?? 0.5, dcfg.steerAssistMin ?? 0) : 0;
+      car.steerEase = metas[g.carId].isPlayer ? (dcfg.steerEase ?? 0) : 0;
       car.progress = pose.s - model.length;
       car.gapAhead = 0; car.gapLeader = 0; car.lapsCompleted = 0;
       const p = model.project(car.x, car.y, 0);
@@ -303,6 +306,7 @@ export class RaceSim {
       if (car.overheatEvent) emit('car:overheat', { carId: i });
       if (car.wallImpact > 3 && car.wallCooldown <= 0) {
         car.wallCooldown = 0.4; car.contact = 1;
+        this._damage(i, crashDamage(car.wallImpact, this._damageScale(i)));
         emit('car:wall', { carId: i, speed: car.wallImpact, x: car.x, y: car.y });
       }
       if (car.wallCooldown > 0) car.wallCooldown -= dt;
@@ -357,6 +361,8 @@ export class RaceSim {
           a.contact = Math.max(a.contact, Math.min(1, sp / 6));
           b.contact = Math.max(b.contact, Math.min(1, sp / 6));
           if (sp > 2) {
+            this._damage(i, crashDamage(sp, this._damageScale(i), true));
+            this._damage(j, crashDamage(sp, this._damageScale(j), true));
             if (this.time - (this._lastContact[i]) > 0.4 || this._lastContact[i] < 0) { this._lastContact[i] = this.time; emit('car:contact', { carId: i, otherId: j, speed: sp }); }
             if (this.time - (this._lastContact[j]) > 0.4 || this._lastContact[j] < 0) { this._lastContact[j] = this.time; emit('car:contact', { carId: j, otherId: i, speed: sp }); }
           }
@@ -370,6 +376,20 @@ export class RaceSim {
     this.stepCount++;
   }
 
+  // ---------------- damage ----------------
+  _damageScale(i) {
+    if (!this.metas[i].isPlayer) return 0.6;      // AI cars take (a bit less) damage too, so a pile-up slows the field down
+    return (DIFFICULTY[this.config.difficulty] ?? DIFFICULTY.normal).playerDamage ?? 1;
+  }
+
+  _damage(i, amount) {
+    if (!(amount > 0)) return;
+    const car = this.cars[i];
+    const before = car.damage;
+    car.damage = Math.min(MAX_DAMAGE, before + amount);
+    if (car.damage > before) this.emit('car:damage', { carId: i, damage: car.damage, added: car.damage - before });
+  }
+
   // ---------------- snapshot ----------------
   _buildSnapshot() {
     const cars = [];
@@ -378,6 +398,7 @@ export class RaceSim {
       phase: 'intro', time: 0, raceTime: 0, introT: 0, lights: { lit: 0, out: false },
       laps: this.config.laps, minutes: this.config.minutes, playerId: this.playerId, leaderId: 0,
       order: new Array(20).fill(0), fastestLap: null, cars,
+      damageOn: (DIFFICULTY[this.config.difficulty] ?? DIFFICULTY.normal).playerDamage > 0,
     };
     this._fillSnapshot(0);
   }
@@ -408,7 +429,7 @@ export class RaceSim {
       o.lastLap = c.lastLap; o.bestLap = c.bestLap;
       o.gapAhead = c.gapAhead || 0; o.gapLeader = c.gapLeader || 0;
       o.compound = m.compound; o.issue = this.faultPlans[i] && this.faultPlans[i].started && !this.faultPlans[i].ended ? this.faultPlans[i].kind : null;
-      o.tyreWear = c.tyreWear; o.tyreGrip = c.tyreGrip; o.heat = c.heat; o.ers = c.ers; o.boosting = c.boosting;
+      o.damage = c.damage; o.tyreWear = c.tyreWear; o.tyreGrip = c.tyreGrip; o.heat = c.heat; o.ers = c.ers; o.boosting = c.boosting;
       o.wrongWay = c.wrongWay; o.ghost = c.ghost > 0 ? Math.min(1, c.ghost / RECOVERY.ghostSeconds) : 0; o.finished = c.finished; o.finishTime = c.finishTime; o.contact = c.contact;
     }
   }

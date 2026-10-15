@@ -33,7 +33,7 @@ export function createHud({ root, bus, save, onPause = () => {}, onSkipIntro = (
   const flBadge = h('div.fl-badge', 'FASTEST LAP');
   const flInfo = h('div.fl-info');
   const gapAhead = h('div.gap-row.ahead'), gapBehind = h('div.gap-row.behind');
-  const pauseBtn = h('button.hud-pause', { type: 'button', tabindex: -1, title: 'Pause (Esc)', onclick: (e) => { e.currentTarget.blur(); onPause(); } }, 'II');
+  const pauseBtn = h('button.hud-pause', { type: 'button', tabindex: -1, title: 'Pause (Esc)', onclick: (e) => { e.currentTarget.blur(); onPause(); } }, h('span.pk', 'II'), h('span.pt', '☰ MENU'));
 
   const topRight = h('div.hud-topright',
     h('div.lp-row', h('div.lp', h('label', 'LAP'), lapVal, lapTotal), h('div.lp', h('label', 'POS'), posVal, posTotal)),
@@ -53,10 +53,13 @@ export function createHud({ root, bus, save, onPause = () => {}, onSkipIntro = (
   const tyreFill = h('div.fill'), tyreTxt = h('span.val');
   const ersFill = h('div.fill.ers'), ersTxt = h('span.val');
   const heatFill = h('div.fill.heat'), heatTxt = h('span.val');
+  const dmgFill = h('div.fill.dmg'), dmgTxt = h('span.val');
+  const dmgRow = h('div.gauge.gauge-dmg', h('label', 'DAMAGE'), h('div.track', dmgFill), dmgTxt);
   const gauges = h('div.hud-gauges',
     h('div.gauge', h('label', 'TYRES'), h('div.track', tyreFill), tyreTxt),
     h('div.gauge', h('label', 'ERS'), h('div.track', ersFill), ersTxt),
-    h('div.gauge', h('label', 'ENGINE'), h('div.track', heatFill), heatTxt));
+    h('div.gauge', h('label', 'ENGINE'), h('div.track', heatFill), heatTxt),
+    dmgRow);
 
   const mapWrap = h('div.hud-minimap');
 
@@ -133,6 +136,13 @@ export function createHud({ root, bus, save, onPause = () => {}, onSkipIntro = (
     const c = lastSnap.cars[e.carId], me = lastSnap.cars[info.playerId];
     if (!c || !me || (c.position > 8 && Math.abs(c.position - me.position) > 2)) return;
     toast(`${codeOf(e.carId)}  ${e.label}`, 'amber', 3000);
+  });
+  on('car:damage', (e) => {
+    if (!info || e.carId !== info.playerId) return;
+    const before = e.damage - e.added;
+    for (const [lvl, msg] of [[0.25, 'DAMAGE 25%'], [0.5, 'HEAVY DAMAGE 50%'], [0.75, 'CAR CRITICAL 75%']]) {
+      if (before < lvl && e.damage >= lvl) toast(msg, lvl >= 0.5 ? 'red' : 'amber', 2200);
+    }
   });
   on('car:wall', (e) => {
     if (info && e.carId === info.playerId && e.speed > 12) toast('IMPACT', 'red', 1400);
@@ -252,6 +262,13 @@ export function createHud({ root, bus, save, onPause = () => {}, onSkipIntro = (
     setStyle(heatFill, 'width', `${Math.round(heat * 100)}%`);
     setClass(heatFill, 'hot', me.heat > 0.85);
     setText(heatTxt, me.heat > 1 ? 'OVERHEAT' : `${Math.round(me.heat * 100)}%`);
+
+    // damage (hidden entirely on easy, where the player's car can't be hurt)
+    const dmg = me.damage || 0;
+    dmgRow.classList.toggle('off', !snap.damageOn);
+    setStyle(dmgFill, 'width', `${Math.round(dmg * 100)}%`);
+    setClass(dmgFill, 'hot', dmg > 0.5);
+    setText(dmgTxt, `${Math.round(dmg * 100)}%`);
 
     // warnings
     let w = '';

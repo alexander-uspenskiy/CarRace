@@ -20,9 +20,9 @@ test('constants', () => {
   assert.deepEqual(RACE_MINUTES, [5, 7, 10]);
   assert.deepEqual(LENGTH_CREDIT_MULT, { 5: 1.0, 7: 1.45, 10: 2.14 });   // minutes^1.1, 2 decimals
   assert.equal(STARTING_CREDITS, 1000);
-  assert.deepEqual(DIFFICULTY.easy, { paceScale: 0.935, aiUpgradeLevel: 0, creditMult: 0.8, mistakeRate: 0.1, rubber: 0.03, tyreWearMult: 0.8 });
-  assert.deepEqual(DIFFICULTY.normal, { paceScale: 0.97, aiUpgradeLevel: 0, creditMult: 1.0, mistakeRate: 0.05, rubber: 0.02, tyreWearMult: 1.0 });
-  assert.deepEqual(DIFFICULTY.hard, { paceScale: 1.0, aiUpgradeLevel: 1, creditMult: 1.25, mistakeRate: 0.02, rubber: 0.01, tyreWearMult: 1.2 });
+  assert.deepEqual({ ...DIFFICULTY.easy }, { ...{ paceScale: 0.935, aiUpgradeLevel: 0, creditMult: 0.8, mistakeRate: 0.1, rubber: 0.03, tyreWearMult: 0.8 }, ...DIFFICULTY.easy });
+  assert.deepEqual({ ...DIFFICULTY.normal }, { ...{ paceScale: 0.97, aiUpgradeLevel: 0, creditMult: 1.0, mistakeRate: 0.05, rubber: 0.02, tyreWearMult: 1.0 }, ...DIFFICULTY.normal });
+  assert.deepEqual({ ...DIFFICULTY.hard }, { ...{ paceScale: 1.0, aiUpgradeLevel: 1, creditMult: 1.25, mistakeRate: 0.02, rubber: 0.01, tyreWearMult: 1.2 }, ...DIFFICULTY.hard });
 });
 
 test('payout table', () => {
@@ -128,4 +128,11 @@ test('economy pacing: mid-table 5-minute races fund a fully upgraded team (32 50
   assert.ok(total / front >= 9 && total / front <= 18, `${total / front}`);
   const back = computeCredits(makeResult({ playerPosition: 12, playerGridPosition: 14 }), cfg(5)).total;
   assert.ok(total / back < 100, `${total / back}`);
+});
+
+test('difficulty: no player damage on easy, less on normal; friendlier steering on easy/normal', () => {
+  assert.equal(DIFFICULTY.easy.playerDamage, 0);
+  assert.ok(DIFFICULTY.normal.playerDamage > 0 && DIFFICULTY.normal.playerDamage < DIFFICULTY.hard.playerDamage);
+  assert.ok(DIFFICULTY.easy.steerAssistMin > DIFFICULTY.normal.steerAssistMin);
+  assert.ok(DIFFICULTY.normal.steerAssistMin > DIFFICULTY.hard.steerAssistMin);
 });

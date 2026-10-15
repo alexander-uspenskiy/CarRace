@@ -33,6 +33,14 @@ export const TUNING = {
   wearLoadNorm: 1.25,         // spec 1.6; tuned so a normal-difficulty AI stint ends ~0.55 wear (see docs/NOTES-B.md)
 };
 
+/** Damage added by an impact of `speed` m/s (wall) - car-car contacts use the same curve, gentler. Pure. */
+export function crashDamage(speed, scale = 1, soft = false) {
+  const over = soft ? speed - 1.5 : speed - 2.5;
+  if (over <= 0) return 0;
+  return (soft ? 0.01 : 0.012) * over * scale;
+}
+export const MAX_DAMAGE = 0.8;
+
 export function steerLimit(stats, u) {
   const r = u / 28;
   return stats.steerMax * (0.12 + 0.88 / (1 + r * r));
@@ -45,6 +53,7 @@ export function createCarState(pose, stats) {
     u: pose.speed || 0, v: 0, yawRate: 0, steerAngle: 0, ax: 0, ay: 0,
     inThrottle: 0, inBrake: 0, inSteer: 0,
     tyreWear: 0, tyreGrip: 1, heat: 0, ers: 1, boosting: false, wantBoost: false,
+    damage: 0, steerEase: 0,                                  // crash damage 0..1 (collisions.js) / easy-mode steering softening
     powerMult: 1, coolMult: 1, wearMult: 1, gripMult: 1,     // car trouble multipliers (carFaults.js)
     s: 0, d: 0, index: 0, surface: 'asphalt', progress: 0,
     lap: 1, lapStartT: 0, lastLap: null, bestLap: null, wrongWayT: 0,
@@ -110,6 +119,8 @@ export function filterInput(car, raw, dt) {
     const damp = clamp((car.yawRate - wref) * 0.25, -0.3, 0.3);        // yaw-rate damping
     steer = clamp(st + assist * (counter - damp), -1, 1);
   }
+  // easy / medium: less steering lock at speed, so a twitchy thumb doesn't spin the car
+  if (!ai && car.steerEase > 0 && car.u > 15) steer *= 1 - 0.35 * car.steerEase * clamp((car.u - 15) / 45, 0, 1);
   out.steer = steer;
   out.throttle = car.inThrottle;
   out.brake = car.inBrake;
@@ -126,7 +137,7 @@ function substep(car, stats, input, env, h, hDerate, rev) {
   const DF = 0.5 * T.rho * stats.clA * u * u;
   const Fzf = W * (b / L) + DF * stats.aeroBalanceFront;
   const Fzr = W * (a / L) + DF * (1 - stats.aeroBalanceFront);
-  const muBase = stats.tyreMu * car.tyreGrip;
+  const muBase = stats.tyreMu * car.tyreGrip * (1 - 0.1 * (car.damage || 0));      // damaged car: a bit less grip
   const muF = muBase * env.gripFront;
   const muR = muBase * env.gripRear * (input.handbrake ? T.handbrakeRearMu : 1);
 
@@ -136,7 +147,7 @@ function substep(car, stats, input, env, h, hDerate, rev) {
 
   // longitudinal forces
   const throttle = input.throttle;
-  const Peff = (stats.power + (car.boosting ? stats.boostPower : 0)) * throttle * (car.powerMult ?? 1);   // powerMult: AI car trouble
+  const Peff = (stats.power + (car.boosting ? stats.boostPower : 0)) * throttle * (car.powerMult ?? 1) * (1 - 0.45 * (car.damage || 0));   // powerMult: AI car trouble
   let Fdrive = Math.min(Peff / Math.max(u, 4), 0.95 * muR * Fzr) * hDerate;   // overheated engine: less torque everywhere
   if (Fdrive < 0) Fdrive = 0;
   let Fxf = 0, Fxr = Fdrive;

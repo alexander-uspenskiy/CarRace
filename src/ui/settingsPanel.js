@@ -87,7 +87,7 @@ export function controlsTable() {
       h('div.ctl-row', h('kbd', 'BOOST'), h('span', 'ERS boost (hold)')),
       h('div.ctl-row', h('kbd', 'CAM'), h('span', 'Change camera')),
       h('div.ctl-row', h('kbd', 'RESET'), h('span', 'Reset car to track')),
-      h('div.ctl-row', h('kbd', 'II'), h('span', 'Pause'))));
+      h('div.ctl-row', h('kbd', '☰ MENU'), h('span', 'Pause / quit to main menu'))));
 }
 
 /** Modal overlay with controls help; toggled by H. */

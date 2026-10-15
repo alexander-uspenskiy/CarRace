@@ -1,8 +1,10 @@
 // Difficulty, race-length multipliers, credit payouts.
 export const DIFFICULTY = {
-  easy: { paceScale: 0.935, aiUpgradeLevel: 0, creditMult: 0.8, mistakeRate: 0.1, rubber: 0.03, tyreWearMult: 0.8 },
-  normal: { paceScale: 0.97, aiUpgradeLevel: 0, creditMult: 1.0, mistakeRate: 0.05, rubber: 0.02, tyreWearMult: 1.0 },
-  hard: { paceScale: 1.0, aiUpgradeLevel: 1, creditMult: 1.25, mistakeRate: 0.02, rubber: 0.01, tyreWearMult: 1.2 },
+  // playerDamage: share of crash damage the player's car takes (easy: none). steerAssistMin / steerEase: friendlier steering
+  // (floor for the Settings assist slider; less steering lock at speed).
+  easy: { paceScale: 0.935, aiUpgradeLevel: 0, creditMult: 0.8, mistakeRate: 0.1, rubber: 0.03, tyreWearMult: 0.8, playerDamage: 0, steerAssistMin: 0.85, steerEase: 1 },
+  normal: { paceScale: 0.97, aiUpgradeLevel: 0, creditMult: 1.0, mistakeRate: 0.05, rubber: 0.02, tyreWearMult: 1.0, playerDamage: 0.5, steerAssistMin: 0.65, steerEase: 0.6 },
+  hard: { paceScale: 1.0, aiUpgradeLevel: 1, creditMult: 1.25, mistakeRate: 0.02, rubber: 0.01, tyreWearMult: 1.2, playerDamage: 1, steerAssistMin: 0, steerEase: 0 },
 };
 export const RACE_MINUTES = [5, 7, 10];
 // Payout grows with race length as minutes^1.1, so a longer race pays at least as much per real minute as a 5-minute one

@@ -1,4 +1,4 @@
-// Wall and car-car collision response (spec §4.3). Soft, no damage.
+// Wall and car-car collision response (spec §4.3). Soft; damage is applied by RaceSim from the returned impact / closing speeds.
 import { clamp, wrapAngle } from '../core/mathUtil.js';
 
 const WALL_SKIN = 0.02;          // m
