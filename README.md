@@ -4,6 +4,8 @@
 
 **A Formula-style racing game that runs in your browser. Built on Three.js. No build step, no assets, no installs.**
 
+### [▶ PLAY NOW](https://alexander-uspenskiy.github.io/CarRace/)
+
 [![License: MIT](https://img.shields.io/badge/license-MIT-e10600?style=for-the-badge)](LICENSE)
 [![Three.js](https://img.shields.io/badge/Three.js-r170-000000?style=for-the-badge&logo=threedotjs&logoColor=white)](https://threejs.org)
 [![No build step](https://img.shields.io/badge/build%20step-none-2ea44f?style=for-the-badge)](#-quick-start)
@@ -66,6 +68,10 @@ Pick a team from the **2025 Formula grid**, choose a circuit and a race length (
 | Aston Martin | AMR25 | Alpine | A525 |
 
 ## 🚀 Quick start
+
+**Just play:** open **https://alexander-uspenskiy.github.io/CarRace/** in a desktop browser.
+
+**Run it locally:**
 
 ```bash
 git clone https://github.com/alexander-uspenskiy/CarRace.git
